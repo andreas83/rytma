@@ -8,32 +8,38 @@ class LoopLayer {
   final String id;
   final String path;
   final AudioPlayer player;
-  bool playing;
+  double volume;
+  bool muted;
 
   LoopLayer({
     required this.id,
     required this.path,
     required this.player,
-    this.playing = true,
+    this.volume = 1.0,
+    this.muted = false,
   });
 }
 
-/// Records microphone input and plays the takes back as looping layers, so a
-/// player can build a simple multi-track loop on top of the metronome.
+/// Records microphone takes and plays them back as looping layers, so a player
+/// can build a simple multi-track loop over the metronome.
 ///
 /// Recording uses [record] (`AudioRecorder`) and each completed take is handed
-/// to an [AudioPlayer] (audioplayers) set to [ReleaseMode.loop].
+/// to a looping [AudioPlayer] (audioplayers). Supports the usual looper moves:
+/// per-layer volume, mute, solo, undo (remove last), stop/play all, and clear.
 class LoopRecorder extends ChangeNotifier {
   final AudioRecorder _recorder = AudioRecorder();
   final List<LoopLayer> _layers = [];
 
   bool _isRecording = false;
   bool _permissionGranted = false;
+  bool _playing = true;
   String? _error;
 
   List<LoopLayer> get layers => List.unmodifiable(_layers);
   bool get isRecording => _isRecording;
   bool get hasPermission => _permissionGranted;
+  bool get isPlaying => _playing;
+  bool get isEmpty => _layers.isEmpty;
   String? get error => _error;
 
   Future<bool> ensurePermission() async {
@@ -70,7 +76,9 @@ class LoopRecorder extends ChangeNotifier {
     if (path != null) {
       final player = AudioPlayer();
       await player.setReleaseMode(ReleaseMode.loop);
+      await player.setVolume(1);
       await player.play(DeviceFileSource(path));
+      _playing = true;
       _layers.add(LoopLayer(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         path: path,
@@ -80,17 +88,41 @@ class LoopRecorder extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleLayer(String id) async {
-    final index = _layers.indexWhere((l) => l.id == id);
-    if (index < 0) return;
-    final layer = _layers[index];
-    if (layer.playing) {
-      await layer.player.pause();
-      layer.playing = false;
-    } else {
-      await layer.player.resume();
-      layer.playing = true;
+  Future<void> setVolume(String id, double volume) async {
+    final layer = _find(id);
+    if (layer == null) return;
+    layer.volume = volume.clamp(0.0, 1.0);
+    if (!layer.muted) await layer.player.setVolume(layer.volume);
+    notifyListeners();
+  }
+
+  Future<void> toggleMute(String id) async {
+    final layer = _find(id);
+    if (layer == null) return;
+    layer.muted = !layer.muted;
+    await layer.player.setVolume(layer.muted ? 0 : layer.volume);
+    notifyListeners();
+  }
+
+  /// Solo a layer: mute every other layer. If [id] is already the only audible
+  /// layer, un-mute everything instead (toggle behaviour).
+  Future<void> toggleSolo(String id) async {
+    final alreadySoloed =
+        _layers.every((l) => l.id == id ? !l.muted : l.muted) &&
+            _layers.any((l) => l.id == id && !l.muted);
+    for (final layer in _layers) {
+      layer.muted = alreadySoloed ? false : layer.id != id;
+      await layer.player.setVolume(layer.muted ? 0 : layer.volume);
     }
+    notifyListeners();
+  }
+
+  /// Remove the most recently recorded layer.
+  Future<void> undoLast() async {
+    if (_layers.isEmpty) return;
+    final layer = _layers.removeLast();
+    await layer.player.stop();
+    await layer.player.dispose();
     notifyListeners();
   }
 
@@ -103,13 +135,32 @@ class LoopRecorder extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Pause or resume playback of every layer at once (keeps them in sync).
+  Future<void> togglePlayAll() async {
+    _playing = !_playing;
+    for (final layer in _layers) {
+      if (_playing) {
+        await layer.player.resume();
+      } else {
+        await layer.player.pause();
+      }
+    }
+    notifyListeners();
+  }
+
   Future<void> clearAll() async {
     for (final layer in _layers) {
       await layer.player.stop();
       await layer.player.dispose();
     }
     _layers.clear();
+    _playing = true;
     notifyListeners();
+  }
+
+  LoopLayer? _find(String id) {
+    final index = _layers.indexWhere((l) => l.id == id);
+    return index < 0 ? null : _layers[index];
   }
 
   @override

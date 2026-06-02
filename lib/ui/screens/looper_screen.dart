@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 import '../../services/loop_recorder.dart';
 
 /// Looper screen: record microphone takes that loop continuously and stack as
-/// layers over the metronome.
+/// layers over the metronome, with per-layer volume / mute / solo plus undo,
+/// stop-all and clear.
 class LooperScreen extends StatelessWidget {
   const LooperScreen({super.key});
 
@@ -16,17 +17,26 @@ class LooperScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Looper'),
         actions: [
-          if (recorder.layers.isNotEmpty)
-            IconButton(
-              tooltip: 'Clear all loops',
-              icon: const Icon(Icons.delete_sweep_outlined),
-              onPressed: recorder.clearAll,
-            ),
+          IconButton(
+            tooltip: 'Undo last loop',
+            icon: const Icon(Icons.undo),
+            onPressed: recorder.isEmpty ? null : recorder.undoLast,
+          ),
+          IconButton(
+            tooltip: recorder.isPlaying ? 'Stop all' : 'Play all',
+            icon: Icon(recorder.isPlaying ? Icons.pause : Icons.play_arrow),
+            onPressed: recorder.isEmpty ? null : recorder.togglePlayAll,
+          ),
+          IconButton(
+            tooltip: 'Clear all loops',
+            icon: const Icon(Icons.delete_sweep_outlined),
+            onPressed: recorder.isEmpty ? null : recorder.clearAll,
+          ),
         ],
       ),
       body: Column(
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           _RecordButton(recorder: recorder),
           const SizedBox(height: 8),
           Text(
@@ -41,9 +51,9 @@ class LooperScreen extends StatelessWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-          const Divider(height: 32),
+          const Divider(height: 28),
           Expanded(
-            child: recorder.layers.isEmpty
+            child: recorder.isEmpty
                 ? Center(
                     child: Text(
                       'No loops yet.\nRecord over the running metronome to build layers.',
@@ -54,28 +64,76 @@ class LooperScreen extends StatelessWidget {
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemCount: recorder.layers.length,
-                    itemBuilder: (context, i) {
-                      final layer = recorder.layers[i];
-                      return Card(
-                        child: ListTile(
-                          leading: IconButton(
-                            icon: Icon(layer.playing
-                                ? Icons.pause_circle_filled
-                                : Icons.play_circle_fill),
-                            onPressed: () => recorder.toggleLayer(layer.id),
-                          ),
-                          title: Text('Loop ${i + 1}'),
-                          subtitle: Text(layer.playing ? 'Playing' : 'Paused'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => recorder.removeLayer(layer.id),
-                          ),
-                        ),
-                      );
-                    },
+                    itemBuilder: (context, i) => _LayerCard(
+                      recorder: recorder,
+                      index: i,
+                    ),
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LayerCard extends StatelessWidget {
+  const _LayerCard({required this.recorder, required this.index});
+
+  final LoopRecorder recorder;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final layer = recorder.layers[index];
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Text('Loop ${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Mute',
+                  isSelected: layer.muted,
+                  icon: Icon(layer.muted ? Icons.volume_off : Icons.volume_up),
+                  color: layer.muted ? scheme.error : null,
+                  onPressed: () => recorder.toggleMute(layer.id),
+                ),
+                IconButton(
+                  tooltip: 'Solo',
+                  icon: const Text('S', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () => recorder.toggleSolo(layer.id),
+                ),
+                IconButton(
+                  tooltip: 'Delete',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => recorder.removeLayer(layer.id),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                const Icon(Icons.graphic_eq, size: 18),
+                Expanded(
+                  child: Slider(
+                    value: layer.volume,
+                    onChanged: (v) => recorder.setVolume(layer.id, v),
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text('${(layer.volume * 100).round()}%',
+                      textAlign: TextAlign.end),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -93,8 +151,8 @@ class _RecordButton extends StatelessWidget {
       onTap: recorder.toggleRecording,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        width: 120,
-        height: 120,
+        width: 116,
+        height: 116,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: recorder.isRecording ? scheme.error : scheme.primary,
@@ -109,7 +167,7 @@ class _RecordButton extends StatelessWidget {
         ),
         child: Icon(
           recorder.isRecording ? Icons.stop_rounded : Icons.fiber_manual_record,
-          size: 56,
+          size: 54,
           color: Colors.white,
         ),
       ),

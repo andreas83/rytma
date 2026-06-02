@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../engine/tick_event.dart';
+import '../../models/poly_timbre.dart';
 import '../../state/metronome_controller.dart';
 import '../theme.dart';
 import '../widgets/tempo_control.dart';
@@ -64,6 +65,39 @@ class PolyrhythmScreen extends StatelessWidget {
             divisions: 10,
             label: '${state.polyPulses}',
             onChanged: (v) => controller.setPolyPulses(v.round()),
+          ),
+          const SizedBox(height: 8),
+          const Text('Sound', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final t in PolyTimbre.values)
+                ChoiceChip(
+                  label: Text(t.label),
+                  selected: t == state.polyTimbre,
+                  onSelected: (_) => controller.setPolyTimbre(t),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.volume_up, size: 20),
+              Expanded(
+                child: Slider(
+                  value: state.polyVolume,
+                  label: '${(state.polyVolume * 100).round()}%',
+                  divisions: 20,
+                  onChanged: controller.setPolyVolume,
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                child: Text('${(state.polyVolume * 100).round()}%',
+                    textAlign: TextAlign.end),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           const TempoControl(),

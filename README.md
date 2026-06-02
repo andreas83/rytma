@@ -10,20 +10,21 @@ and Web — built for musicians who need more than a plain click.
 - **Subdivisions** — eighths, triplets, 16ths, quintuplets, sextuplets, with a
   live beat grid showing exactly where each click lands.
 - **Polyrhythm** — layer a second voice of *N* evenly spaced pulses across the
-  bar for a `beats : N` cross-rhythm, with a color-coded visualizer.
+  bar for a `beats : N` cross-rhythm, with a color-coded visualizer plus a
+  selectable sound and volume for the cross-voice.
 - **Training**
   - *Tempo ramp* — automatically change BPM by a step every few bars up to a
     target (great for speed-building).
   - *Gap trainer* — play a few bars, then mute a few, to test your internal
     clock.
-- **Looper** — record short microphone takes that loop continuously and stack as
-  layers over the metronome.
+- **Looper** — record short microphone takes that loop and stack as layers, with
+  per-layer volume, mute, solo, undo, stop-all, and clear.
 - **Tuner (Stimmgerät)** — chromatic instrument tuner with a cents needle and
   frequency readout (A4 = 440 Hz).
 - **Spectrogram** — live scrolling FFT view of the incoming audio, with an
   optional overlay marking the metronome's bar downbeats.
-- **Setlist** — save and recall full configurations as named presets; your last
-  setup is restored on launch.
+- **Setlist** — built-in starter presets plus save/recall of your own named
+  presets; your last setup is restored on launch.
 
 The click sounds are **synthesized at runtime**, so the app ships with no audio
 asset files and each accent level has its own distinct pitch.

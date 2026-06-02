@@ -94,12 +94,11 @@ class AudioAnalyzer extends ChangeNotifier {
 
   void _onData(Uint8List bytes) {
     // Interpret as little-endian signed 16-bit PCM, normalized to [-1, 1].
-    final samples = bytes.buffer.asInt16List(
-      bytes.offsetInBytes,
-      bytes.lengthInBytes ~/ 2,
-    );
-    for (final s in samples) {
-      _frame[_filled++] = s / 32768.0;
+    // Use ByteData so we are robust to any byte offset/alignment of the chunk.
+    final data = ByteData.sublistView(bytes);
+    final count = bytes.lengthInBytes ~/ 2;
+    for (var j = 0; j < count; j++) {
+      _frame[_filled++] = data.getInt16(j * 2, Endian.little) / 32768.0;
       if (_filled == fftSize) {
         _analyze();
         // 50% overlap: keep the second half as the start of the next window.

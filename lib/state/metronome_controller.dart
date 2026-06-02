@@ -4,6 +4,7 @@ import '../engine/metronome_engine.dart';
 import '../engine/tick_event.dart';
 import '../models/accent.dart';
 import '../models/metronome_state.dart';
+import '../models/poly_timbre.dart';
 import '../models/preset.dart';
 import '../models/subdivision.dart';
 import '../models/trainer_config.dart';
@@ -63,7 +64,17 @@ class MetronomeController extends ChangeNotifier {
   }
 
   void _onTick(TickEvent event, bool audible) {
-    if (audible) _audio.play(event.type);
+    if (audible) {
+      if (event.isPoly) {
+        _audio.playPoly(
+          _state.polyTimbre,
+          event.type == ClickType.polyStrong,
+          _state.polyVolume,
+        );
+      } else {
+        _audio.play(event.type);
+      }
+    }
     pulse.value = event;
   }
 
@@ -165,6 +176,12 @@ class MetronomeController extends ChangeNotifier {
 
   void setPolyPulses(int pulses) =>
       _apply(_state.copyWith(polyPulses: pulses.clamp(2, 12)));
+
+  void setPolyTimbre(PolyTimbre timbre) =>
+      _apply(_state.copyWith(polyTimbre: timbre));
+
+  void setPolyVolume(double volume) =>
+      _apply(_state.copyWith(polyVolume: volume.clamp(0.0, 1.0)));
 
   // --- Trainer -----------------------------------------------------------
 

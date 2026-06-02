@@ -12,15 +12,17 @@ basic click, it offers:
   per-beat accents (strong / normal / weak / mute), and subdivisions
   (eighths, triplets, 16ths, quintuplets, sextuplets).
 - **Polyrhythm** — a second voice of *N* evenly spaced pulses against the bar,
-  giving a `beats : N` cross-rhythm with a color-coded visualizer.
+  giving a `beats : N` cross-rhythm with a color-coded visualizer and a
+  selectable timbre + volume for the cross-voice.
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — record microphone takes that loop continuously and stack as
-  layers over the metronome.
-- **Tuner (Stimmgerät)** — chromatic pitch detection (note + cents) from the mic.
+  layers, with per-layer volume / mute / solo, undo, stop-all and clear.
+- **Tuner (Stimmgerät)** — chromatic pitch detection (note + cents) from the mic,
+  using the YIN algorithm (`engine/pitch.dart`).
 - **Spectrogram** — live FFT heatmap of the mic input, optionally overlaying the
   metronome's bar downbeats.
-- **Setlist** — save/recall full configurations as named presets.
+- **Setlist** — built-in starter presets plus save/recall of named user presets.
 
 ## Tech stack
 
@@ -54,9 +56,11 @@ lib/
     time_signature.dart
     subdivision.dart         enum: pulses-per-beat.
     accent.dart              enum: mute / weak / normal / strong.
+    poly_timbre.dart         enum: selectable polyrhythm-voice sound.
     trainer_config.dart      Tempo-ramp + gap-trainer settings.
     metronome_state.dart     The full serializable app state.
     preset.dart              A named saved MetronomeState.
+    factory_presets.dart     Built-in starter presets.
   engine/                    Framework-agnostic timing/DSP core (pure Dart).
     tick_event.dart          ClickType enum + TickEvent.
     click_synth.dart         Generates 16-bit mono WAV click samples in memory.

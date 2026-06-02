@@ -45,21 +45,23 @@ class Pitch {
     );
   }
 
-  /// Estimate the fundamental frequency of [samples] via autocorrelation with
-  /// parabolic interpolation. Returns null when the signal is too quiet or no
-  /// stable pitch is found.
+  /// Estimate the fundamental frequency of [samples] using the YIN algorithm
+  /// (de Cheveigné & Kawahara). Returns null when the signal is too quiet or no
+  /// confident pitch is found.
   ///
-  /// Intended for monophonic sources (a single sung/played note), which is the
-  /// normal case when tuning an instrument.
+  /// YIN is robust for monophonic sources (a single sung/played note), which is
+  /// the normal case when tuning an instrument, and avoids the octave errors a
+  /// naive autocorrelation peak-picker tends to make.
   static double? detectFrequency(
     Float64List samples,
     int sampleRate, {
     double minHz = 50,
     double maxHz = 1500,
-    double rmsThreshold = 0.01,
+    double rmsThreshold = 0.004,
+    double yinThreshold = 0.12,
   }) {
     final n = samples.length;
-    if (n < 2) return null;
+    if (n < 4) return null;
 
     // Remove DC offset and measure loudness.
     var mean = 0.0;
@@ -69,63 +71,80 @@ class Pitch {
     mean /= n;
 
     var rms = 0.0;
-    final centered = Float64List(n);
+    final x = Float64List(n);
     for (var i = 0; i < n; i++) {
       final v = samples[i] - mean;
-      centered[i] = v;
+      x[i] = v;
       rms += v * v;
     }
     rms = sqrt(rms / n);
     if (rms < rmsThreshold) return null;
 
-    final maxLag = min(n - 1, (sampleRate / minHz).floor());
-    final minLag = max(1, (sampleRate / maxHz).floor());
-    if (maxLag <= minLag) return null;
+    final halfN = n ~/ 2;
+    final tauMax = min(halfN, (sampleRate / minHz).floor());
+    final tauMin = max(2, (sampleRate / maxHz).floor());
+    if (tauMax <= tauMin) return null;
 
-    var bestLag = -1;
-    var bestValue = 0.0;
-    var previous = 0.0;
-    var ascending = false;
-    for (var lag = minLag; lag <= maxLag; lag++) {
+    // 1. Difference function d(tau).
+    final d = Float64List(tauMax + 1);
+    for (var tau = 1; tau <= tauMax; tau++) {
       var sum = 0.0;
-      for (var i = 0; i < n - lag; i++) {
-        sum += centered[i] * centered[i + lag];
+      for (var i = 0; i < halfN; i++) {
+        final diff = x[i] - x[i + tau];
+        sum += diff * diff;
       }
-      // Only consider peaks once the correlation has started rising again,
-      // to skip the trivial maximum near lag 0.
-      if (sum > previous) {
-        ascending = true;
-      } else if (ascending && sum > bestValue) {
-        bestValue = sum;
-        bestLag = lag - 1;
-        ascending = false;
-      }
-      previous = sum;
+      d[tau] = sum;
     }
 
-    if (bestLag <= 0 || bestValue <= 0) return null;
+    // 2. Cumulative mean normalized difference d'(tau).
+    final dPrime = Float64List(tauMax + 1);
+    dPrime[0] = 1;
+    var running = 0.0;
+    for (var tau = 1; tau <= tauMax; tau++) {
+      running += d[tau];
+      dPrime[tau] = running == 0 ? 1 : d[tau] * tau / running;
+    }
 
-    // Parabolic interpolation around the peak for sub-sample precision.
-    final refined = _interpolatePeak(centered, bestLag);
+    // 3. Absolute threshold: first dip below the threshold, descending to its
+    //    local minimum.
+    var tau = -1;
+    for (var t = tauMin; t <= tauMax; t++) {
+      if (dPrime[t] < yinThreshold) {
+        while (t + 1 <= tauMax && dPrime[t + 1] < dPrime[t]) {
+          t++;
+        }
+        tau = t;
+        break;
+      }
+    }
+
+    // Fallback: global minimum of d' if nothing crossed the threshold.
+    if (tau == -1) {
+      var best = double.infinity;
+      var bestT = -1;
+      for (var t = tauMin; t <= tauMax; t++) {
+        if (dPrime[t] < best) {
+          best = dPrime[t];
+          bestT = t;
+        }
+      }
+      if (bestT == -1 || best > 0.6) return null; // too unclear → no pitch
+      tau = bestT;
+    }
+
+    // 4. Parabolic interpolation around the chosen tau for sub-sample accuracy.
+    final refined = _parabolicMin(dPrime, tau, tauMax);
+    if (refined <= 0) return null;
     return sampleRate / refined;
   }
 
-  static double _interpolatePeak(Float64List x, int lag) {
-    double corr(int l) {
-      if (l < 1 || l >= x.length) return 0;
-      var sum = 0.0;
-      for (var i = 0; i < x.length - l; i++) {
-        sum += x[i] * x[i + l];
-      }
-      return sum;
-    }
-
-    final y0 = corr(lag - 1);
-    final y1 = corr(lag);
-    final y2 = corr(lag + 1);
-    final denom = (y0 - 2 * y1 + y2);
-    if (denom == 0) return lag.toDouble();
-    final shift = 0.5 * (y0 - y2) / denom;
-    return lag + shift;
+  static double _parabolicMin(Float64List d, int tau, int tauMax) {
+    if (tau <= 1 || tau >= tauMax) return tau.toDouble();
+    final x0 = d[tau - 1];
+    final x1 = d[tau];
+    final x2 = d[tau + 1];
+    final denom = x0 + x2 - 2 * x1;
+    if (denom == 0) return tau.toDouble();
+    return tau + 0.5 * (x0 - x2) / denom;
   }
 }
