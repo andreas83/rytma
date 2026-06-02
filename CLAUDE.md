@@ -17,6 +17,9 @@ basic click, it offers:
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — record microphone takes that loop continuously and stack as
   layers over the metronome.
+- **Tuner (Stimmgerät)** — chromatic pitch detection (note + cents) from the mic.
+- **Spectrogram** — live FFT heatmap of the mic input, optionally overlaying the
+  metronome's bar downbeats.
 - **Setlist** — save/recall full configurations as named presets.
 
 ## Tech stack
@@ -31,6 +34,9 @@ basic click, it offers:
 - Recording/looping: [`record`](https://pub.dev/packages/record) (mic capture)
   + [`audioplayers`](https://pub.dev/packages/audioplayers) (looping playback),
   with [`path_provider`](https://pub.dev/packages/path_provider) for temp files.
+- Mic analysis (tuner + spectrogram): [`record`](https://pub.dev/packages/record)
+  `startStream` for live PCM + [`fftea`](https://pub.dev/packages/fftea) for the
+  FFT. Pitch detection is hand-rolled autocorrelation (`engine/pitch.dart`).
 - Persistence: [`shared_preferences`](https://pub.dev/packages/shared_preferences)
   (presets + last-used state as JSON).
 
@@ -51,21 +57,25 @@ lib/
     trainer_config.dart      Tempo-ramp + gap-trainer settings.
     metronome_state.dart     The full serializable app state.
     preset.dart              A named saved MetronomeState.
-  engine/                    Framework-agnostic timing core (pure Dart).
+  engine/                    Framework-agnostic timing/DSP core (pure Dart).
     tick_event.dart          ClickType enum + TickEvent.
     click_synth.dart         Generates 16-bit mono WAV click samples in memory.
     metronome_engine.dart    Stopwatch + look-ahead scheduler.
+    pitch.dart               Frequency→note math + autocorrelation detector.
   services/                  Platform/plugin wrappers.
-    audio_clicks.dart        soundpool wrapper; loads synthesized clicks.
+    audio_clicks.dart        flutter_soloud wrapper; loads synthesized clicks.
     loop_recorder.dart       record + audioplayers looper (ChangeNotifier).
+    audio_analyzer.dart      Mic stream → FFT spectrogram + pitch (ChangeNotifier).
     preset_store.dart        shared_preferences persistence.
   state/
     metronome_controller.dart  The central view-model (ChangeNotifier).
   ui/
     theme.dart               Color palette + ThemeData.
     home_shell.dart          NavigationBar + persistent TransportBar.
-    screens/                 metronome / polyrhythm / training / looper / setlist
-    widgets/                 tempo_control / beat_grid / subdivision_picker / transport_bar
+    screens/                 metronome / polyrhythm / training / looper /
+                             analyzer (tuner + spectrogram) / setlist
+    widgets/                 tempo_control / beat_grid / subdivision_picker /
+                             transport_bar / tuner_gauge / spectrogram_view
 test/
   widget_test.dart           Pure-Dart unit tests (models + ClickSynth).
 ```
@@ -113,6 +123,14 @@ bar, producing a `timeSignature.beats : polyPulses` ratio.
 
 The **looper** (`LoopRecorder`) is an independent `ChangeNotifier` provider; it
 runs alongside the metronome and is unrelated to the engine.
+
+The **analyzer** (`AudioAnalyzer`, also an independent provider) streams live
+PCM from the mic (`record.startStream`), runs an FFT (`fftea`) for the
+spectrogram and autocorrelation (`engine/pitch.dart`) for the tuner, and keeps a
+rolling history of spectral columns. The Analyzer screen listens to
+`MetronomeController.pulse` and calls `AudioAnalyzer.markBar()` on each downbeat
+so the spectrogram can draw bar lines. Note: only one mic consumer should run at
+a time (looper vs. analyzer).
 
 ## Conventions
 

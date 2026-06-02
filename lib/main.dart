@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'services/audio_analyzer.dart';
 import 'services/loop_recorder.dart';
 import 'state/metronome_controller.dart';
 import 'ui/home_shell.dart';
@@ -20,6 +21,7 @@ class MetroPowerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => MetronomeController()..init()),
         ChangeNotifierProvider(create: (_) => LoopRecorder()),
+        ChangeNotifierProvider(create: (_) => AudioAnalyzer()),
       ],
       child: MaterialApp(
         title: 'Metro Power',

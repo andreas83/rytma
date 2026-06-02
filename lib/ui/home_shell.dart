@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'screens/analyzer_screen.dart';
 import 'screens/looper_screen.dart';
 import 'screens/metronome_screen.dart';
 import 'screens/polyrhythm_screen.dart';
@@ -23,6 +24,7 @@ class _HomeShellState extends State<HomeShell> {
     PolyrhythmScreen(),
     TrainingScreen(),
     LooperScreen(),
+    AnalyzerScreen(),
   ];
 
   @override
@@ -59,6 +61,11 @@ class _HomeShellState extends State<HomeShell> {
                 icon: Icon(Icons.loop_outlined),
                 selectedIcon: Icon(Icons.loop),
                 label: 'Looper',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.graphic_eq_outlined),
+                selectedIcon: Icon(Icons.graphic_eq),
+                label: 'Analyzer',
               ),
             ],
           ),

@@ -18,6 +18,10 @@ and Web — built for musicians who need more than a plain click.
     clock.
 - **Looper** — record short microphone takes that loop continuously and stack as
   layers over the metronome.
+- **Tuner (Stimmgerät)** — chromatic instrument tuner with a cents needle and
+  frequency readout (A4 = 440 Hz).
+- **Spectrogram** — live scrolling FFT view of the incoming audio, with an
+  optional overlay marking the metronome's bar downbeats.
 - **Setlist** — save and recall full configurations as named presets; your last
   setup is restored on launch.
 
@@ -58,5 +62,5 @@ rules, and how to extend it.
 
 ## Permissions
 
-The looper needs microphone access, declared for Android
+The looper, tuner, and spectrogram need microphone access, declared for Android
 (`RECORD_AUDIO`) and iOS (`NSMicrophoneUsageDescription`).
