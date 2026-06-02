@@ -24,19 +24,20 @@ basic click, it offers:
 - Flutter 3.44 / Dart 3.12 (Material 3, dark theme).
 - State management: [`provider`](https://pub.dev/packages/provider)
   (`ChangeNotifier`).
-- Audio out: [`soundpool`](https://pub.dev/packages/soundpool) for low-latency
-  click playback. **Click samples are synthesized at runtime** (see
-  `ClickSynth`) — there are no binary audio assets in the repo.
+- Audio out: [`flutter_soloud`](https://pub.dev/packages/flutter_soloud) for
+  low-latency click playback (loads PCM straight from memory, overlapping
+  voices). **Click samples are synthesized at runtime** (see `ClickSynth`) —
+  there are no binary audio assets in the repo.
 - Recording/looping: [`record`](https://pub.dev/packages/record) (mic capture)
   + [`audioplayers`](https://pub.dev/packages/audioplayers) (looping playback),
   with [`path_provider`](https://pub.dev/packages/path_provider) for temp files.
 - Persistence: [`shared_preferences`](https://pub.dev/packages/shared_preferences)
   (presets + last-used state as JSON).
 
-> Note: `soundpool` is marked discontinued on pub but remains the cleanest
-> low-latency short-sample player. If it ever needs replacing, swap the
-> implementation behind `AudioClicks` (see Architecture) — nothing else depends
-> on it.
+> Note: the audio backend is isolated behind `AudioClicks` (see Architecture),
+> so it can be swapped without touching the engine, controller, or UI. (An
+> earlier version used `soundpool`, but it is discontinued and fails to compile
+> on modern Android — `flutter_soloud` replaced it.)
 
 ## Project layout
 

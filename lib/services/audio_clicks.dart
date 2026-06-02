@@ -1,31 +1,31 @@
 import 'dart:typed_data';
 
-import 'package:soundpool/soundpool.dart';
+import 'package:flutter_soloud/flutter_soloud.dart';
 
 import '../engine/click_synth.dart';
 import '../engine/tick_event.dart';
 
 /// Low-latency playback of the synthesized click samples.
 ///
-/// Uses [soundpool] because it is purpose-built for firing many short sounds
-/// with minimal latency (ideal for a metronome). Each [ClickType] is
-/// synthesized once at [init] and cached by its pool sound id.
+/// Uses [flutter_soloud], which loads PCM data directly from memory and plays
+/// overlapping voices with very low latency — ideal for a metronome, and
+/// actively maintained across modern Flutter/Android toolchains. Each
+/// [ClickType] is synthesized once at [init] and cached as an [AudioSource].
 class AudioClicks {
-  Soundpool? _pool;
-  final Map<ClickType, int> _soundIds = {};
+  final SoLoud _soloud = SoLoud.instance;
+  final Map<ClickType, AudioSource> _sources = {};
   bool _ready = false;
 
   bool get isReady => _ready;
 
   Future<void> init() async {
     if (_ready) return;
-    final pool = Soundpool.fromOptions(
-      options: const SoundpoolOptions(maxStreams: 8),
-    );
-    _pool = pool;
+    if (!_soloud.isInitialized) {
+      await _soloud.init(sampleRate: ClickSynth.sampleRate);
+    }
 
     Future<void> load(ClickType type, Uint8List bytes) async {
-      _soundIds[type] = await pool.loadUint8List(bytes);
+      _sources[type] = await _soloud.loadMem('click_${type.name}', bytes);
     }
 
     await Future.wait([
@@ -49,17 +49,15 @@ class AudioClicks {
   }
 
   void play(ClickType type) {
-    if (type == ClickType.mute) return;
-    final pool = _pool;
-    final id = _soundIds[type];
-    if (pool == null || id == null) return;
-    pool.play(id);
+    if (type == ClickType.mute || !_ready) return;
+    final source = _sources[type];
+    if (source == null) return;
+    _soloud.play(source);
   }
 
   void dispose() {
-    _pool?.dispose();
-    _pool = null;
-    _soundIds.clear();
+    _sources.clear();
     _ready = false;
+    if (_soloud.isInitialized) _soloud.deinit();
   }
 }
