@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../engine/synth.dart';
+import '../../engine/track_export.dart';
 import '../../models/sequencer_pattern.dart';
+import '../../services/track_export_delivery.dart';
 import '../../state/sequencer_controller.dart';
 import '../theme.dart';
 
@@ -37,6 +39,11 @@ class SequencerScreen extends StatelessWidget {
             onPressed: seq.isInitialized
                 ? () => _showMixer(context, seq)
                 : null,
+          ),
+          IconButton(
+            tooltip: 'Export WAV',
+            icon: const Icon(Icons.ios_share),
+            onPressed: seq.isInitialized ? () => _exportWav(context, seq) : null,
           ),
           IconButton(
             tooltip: 'Clear pattern',
@@ -98,6 +105,46 @@ class SequencerScreen extends StatelessWidget {
         child: const _FxRack(),
       ),
     );
+  }
+
+  static Future<void> _exportWav(
+      BuildContext context, SequencerController seq) async {
+    final loops = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Export WAV'),
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 12),
+            child: Text('Bounce the pattern (dry — no FX) to a WAV file.',
+                style: TextStyle(fontSize: 13)),
+          ),
+          for (final n in [1, 2, 4, 8])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, n),
+              child: Text('$n loop${n == 1 ? '' : 's'}'),
+            ),
+        ],
+      ),
+    );
+    if (loops == null || !context.mounted) return;
+
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final bytes =
+          renderPattern(seq.pattern, bpm: seq.effectiveBpm, loops: loops);
+      await deliverWav(bytes, 'metro-power.wav');
+      navigator.pop(); // close spinner
+    } catch (e) {
+      navigator.pop();
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
   }
 }
 

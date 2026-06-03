@@ -24,7 +24,9 @@ basic click, it offers:
   rack** (reverb / delay / resonant low-pass filter / compressor) applied to the
   synth voices via a dedicated `flutter_soloud` Bus. Has its **own transport**
   that loops independently — its tempo *follows the metronome's BPM* unless
-  overridden. All sounds are synthesized at runtime (`engine/synth.dart`).
+  overridden. The pattern can be **exported to a shareable WAV** (offline
+  pure-Dart mixdown via `engine/track_export.dart`). All sounds are synthesized
+  at runtime (`engine/synth.dart`).
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — a multi-channel loop station: record into any of several
@@ -92,6 +94,7 @@ lib/
     synth.dart               Drum + pitched-tone synthesis; `Music` theory helper.
     metronome_engine.dart    Stopwatch + look-ahead scheduler; bar callback.
     sequencer_engine.dart    Stopwatch + look-ahead scheduler; per-step callback.
+    track_export.dart        Offline pure-Dart mixdown of a pattern → WAV bytes.
     pitch.dart               Frequency→note math + YIN pitch detector.
     time_stretch.dart        WSOLA time-stretch (loop "warp", pitch-preserving).
   services/                  Platform/plugin wrappers.
@@ -99,6 +102,7 @@ lib/
     synth_audio.dart         flutter_soloud wrapper; renders/caches synth voices,
                              routes them through a Bus + applies the FX rack.
     loop_recorder.dart       Multi-channel looper: record (PCM) + soloud playback.
+    track_export_delivery.dart  Conditional save/share of exported WAV (io/web).
     audio_analyzer.dart      Mic stream → FFT spectrogram + pitch (ChangeNotifier).
     preset_store.dart        shared_preferences persistence.
   state/

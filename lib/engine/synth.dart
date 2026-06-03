@@ -94,9 +94,12 @@ class Synth {
   static const int sampleRate = 44100;
 
   // --- drums -------------------------------------------------------------
+  //
+  // Each voice has a raw `*Samples` variant (Int16List) used by the offline
+  // exporter, plus a thin WAV wrapper used by the live audio service.
 
   /// Kick: a fast downward pitch sweep (~120→45 Hz) with a punchy decay.
-  static Uint8List kick({double durationMs = 320, double volume = 1.0}) {
+  static Int16List kickSamples({double durationMs = 320, double volume = 1.0}) {
     final n = (sampleRate * durationMs / 1000).round();
     final s = Int16List(n);
     var phase = 0.0;
@@ -109,11 +112,11 @@ class Synth {
       final v = (sin(phase) * env + click) * volume;
       s[i] = (v.clamp(-1.0, 1.0) * 32767).toInt();
     }
-    return Wav.encode(s, sampleRate: sampleRate);
+    return s;
   }
 
   /// Snare: a noise burst layered with a short body tone.
-  static Uint8List snare({double durationMs = 200, double volume = 0.9}) {
+  static Int16List snareSamples({double durationMs = 200, double volume = 0.9}) {
     final n = (sampleRate * durationMs / 1000).round();
     final s = Int16List(n);
     final rng = Random(1);
@@ -125,11 +128,11 @@ class Synth {
       final v = (noise * 0.8 + body) * volume;
       s[i] = (v.clamp(-1.0, 1.0) * 32767).toInt();
     }
-    return Wav.encode(s, sampleRate: sampleRate);
+    return s;
   }
 
   /// Hi-hat: very short, bright filtered noise (high-passed by differencing).
-  static Uint8List hat({double durationMs = 70, double volume = 0.6}) {
+  static Int16List hatSamples({double durationMs = 70, double volume = 0.6}) {
     final n = (sampleRate * durationMs / 1000).round();
     final s = Int16List(n);
     final rng = Random(2);
@@ -143,11 +146,11 @@ class Synth {
       final v = hp * env * volume;
       s[i] = (v.clamp(-1.0, 1.0) * 32767).toInt();
     }
-    return Wav.encode(s, sampleRate: sampleRate);
+    return s;
   }
 
   /// Clap: a few quick noise bursts that smear into one another.
-  static Uint8List clap({double durationMs = 200, double volume = 0.8}) {
+  static Int16List clapSamples({double durationMs = 200, double volume = 0.8}) {
     final n = (sampleRate * durationMs / 1000).round();
     final s = Int16List(n);
     final rng = Random(3);
@@ -161,8 +164,21 @@ class Synth {
       final v = (rng.nextDouble() * 2 - 1) * amp * 0.5 * volume;
       s[i] = (v.clamp(-1.0, 1.0) * 32767).toInt();
     }
-    return Wav.encode(s, sampleRate: sampleRate);
+    return s;
   }
+
+  static Uint8List kick({double durationMs = 320, double volume = 1.0}) =>
+      Wav.encode(kickSamples(durationMs: durationMs, volume: volume),
+          sampleRate: sampleRate);
+  static Uint8List snare({double durationMs = 200, double volume = 0.9}) =>
+      Wav.encode(snareSamples(durationMs: durationMs, volume: volume),
+          sampleRate: sampleRate);
+  static Uint8List hat({double durationMs = 70, double volume = 0.6}) =>
+      Wav.encode(hatSamples(durationMs: durationMs, volume: volume),
+          sampleRate: sampleRate);
+  static Uint8List clap({double durationMs = 200, double volume = 0.8}) =>
+      Wav.encode(clapSamples(durationMs: durationMs, volume: volume),
+          sampleRate: sampleRate);
 
   // --- pitched -----------------------------------------------------------
 
@@ -181,7 +197,7 @@ class Synth {
   }
 
   /// A single pitched note with a simple attack/decay-sustain/release envelope.
-  static Uint8List tone({
+  static Int16List toneSamples({
     required double frequency,
     double durationMs = 360,
     SynthWave wave = SynthWave.saw,
@@ -193,7 +209,7 @@ class Synth {
       _mix([frequency], durationMs, wave, volume, attackMs, releaseMs, sustain);
 
   /// A chord: several pitched voices summed (and scaled to avoid clipping).
-  static Uint8List chordTone(
+  static Int16List chordToneSamples(
     List<double> frequencies, {
     double durationMs = 620,
     SynthWave wave = SynthWave.triangle,
@@ -204,7 +220,29 @@ class Synth {
   }) =>
       _mix(frequencies, durationMs, wave, volume, attackMs, releaseMs, sustain);
 
-  static Uint8List _mix(
+  static Uint8List tone({
+    required double frequency,
+    double durationMs = 360,
+    SynthWave wave = SynthWave.saw,
+    double volume = 0.8,
+    double attackMs = 6,
+    double releaseMs = 90,
+    double sustain = 0.65,
+  }) =>
+      Wav.encode(
+        toneSamples(
+          frequency: frequency,
+          durationMs: durationMs,
+          wave: wave,
+          volume: volume,
+          attackMs: attackMs,
+          releaseMs: releaseMs,
+          sustain: sustain,
+        ),
+        sampleRate: sampleRate,
+      );
+
+  static Int16List _mix(
     List<double> freqs,
     double durationMs,
     SynthWave wave,
@@ -239,21 +277,21 @@ class Synth {
       v *= env * gain;
       s[i] = (v.clamp(-1.0, 1.0) * 32767).toInt();
     }
-    return Wav.encode(s, sampleRate: sampleRate);
+    return s;
   }
 
-  /// Convenience: render a bass note sample for a row in the given key.
-  static Uint8List bass(int root, SynthScale scale, int row,
+  /// Raw bass note samples for a row in the given key.
+  static Int16List bassSamples(int root, SynthScale scale, int row,
           {SynthWave wave = SynthWave.saw}) =>
-      tone(
+      toneSamples(
         frequency: Pitch.frequencyForMidi(Music.bassMidi(root, scale, row)),
         wave: wave,
       );
 
-  /// Convenience: render a lead note sample (brighter, snappier) for a row.
-  static Uint8List lead(int root, SynthScale scale, int row,
+  /// Raw lead note samples (brighter, snappier) for a row.
+  static Int16List leadSamples(int root, SynthScale scale, int row,
           {SynthWave wave = SynthWave.square}) =>
-      tone(
+      toneSamples(
         frequency: Pitch.frequencyForMidi(Music.leadMidi(root, scale, row)),
         wave: wave,
         durationMs: 300,
@@ -262,13 +300,26 @@ class Synth {
         sustain: 0.5,
       );
 
-  /// Convenience: render a chord sample for a diatonic degree in the given key.
-  static Uint8List chord(int root, SynthScale scale, int degree,
+  /// Raw chord samples for a diatonic degree in the given key.
+  static Int16List chordSamples(int root, SynthScale scale, int degree,
           {SynthWave wave = SynthWave.triangle}) =>
-      chordTone(
+      chordToneSamples(
         Music.chordMidis(root, scale, degree)
             .map((m) => Pitch.frequencyForMidi(m))
             .toList(),
         wave: wave,
       );
+
+  static Uint8List bass(int root, SynthScale scale, int row,
+          {SynthWave wave = SynthWave.saw}) =>
+      Wav.encode(bassSamples(root, scale, row, wave: wave),
+          sampleRate: sampleRate);
+  static Uint8List lead(int root, SynthScale scale, int row,
+          {SynthWave wave = SynthWave.square}) =>
+      Wav.encode(leadSamples(root, scale, row, wave: wave),
+          sampleRate: sampleRate);
+  static Uint8List chord(int root, SynthScale scale, int degree,
+          {SynthWave wave = SynthWave.triangle}) =>
+      Wav.encode(chordSamples(root, scale, degree, wave: wave),
+          sampleRate: sampleRate);
 }
