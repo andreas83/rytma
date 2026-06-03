@@ -198,3 +198,10 @@ integration tests rather than plain `flutter test`.
   `ios/Runner/Info.plist` (`NSMicrophoneUsageDescription`). Update both if the
   recording flow changes.
 - Web microphone capture requires a secure context (https or `localhost`).
+- **App icon** — a metronome whose pendulum is a lightning bolt ("Metro" +
+  "Power") on the brand purple gradient. It is drawn procedurally (no binary
+  source art) by `tool/generate_icon.py` (Pillow), which renders a supersampled
+  master and writes every platform size: Android `mipmap-*/ic_launcher.png`, the
+  iOS `AppIcon.appiconset` (flattened to RGB — no alpha, per App Store), and the
+  web `favicon.png` + `icons/`. Re-run `python3 tool/generate_icon.py` after
+  editing the design.
