@@ -66,6 +66,8 @@ class SequencerScreen extends StatelessWidget {
         return MetroColors.normal;
       case _Lane.chord:
         return MetroColors.playing;
+      case _Lane.lead:
+        return MetroColors.lead;
     }
   }
 
@@ -82,7 +84,7 @@ class SequencerScreen extends StatelessWidget {
   }
 }
 
-enum _Lane { kick, snare, hat, clap, bass, chord }
+enum _Lane { kick, snare, hat, clap, bass, chord, lead }
 
 const _drumOf = {
   _Lane.kick: DrumKind.kick,
@@ -98,6 +100,7 @@ const _laneLabels = {
   _Lane.clap: 'Clap',
   _Lane.bass: 'Bass',
   _Lane.chord: 'Chord',
+  _Lane.lead: 'Lead',
 };
 
 /// Transport, tempo, length and key controls (the non-scrolling header).
@@ -294,7 +297,11 @@ class _GutterHeader extends StatelessWidget {
     final drum = _drumOf[lane];
     final muted = drum != null
         ? (p.drumMute[drum] ?? false)
-        : (lane == _Lane.bass ? p.bassMute : p.chordMute);
+        : switch (lane) {
+            _Lane.bass => p.bassMute,
+            _Lane.chord => p.chordMute,
+            _ => p.leadMute,
+          };
     final color = SequencerScreen._laneColor(lane);
     return SizedBox(
       height: SequencerScreen.laneH,
@@ -313,8 +320,10 @@ class _GutterHeader extends StatelessWidget {
                 seq.toggleDrumMute(drum);
               } else if (lane == _Lane.bass) {
                 seq.toggleBassMute();
-              } else {
+              } else if (lane == _Lane.chord) {
                 seq.toggleChordMute();
+              } else {
+                seq.toggleLeadMute();
               }
             },
           ),
@@ -373,6 +382,7 @@ class _LaneCells extends StatelessWidget {
     final p = seq.pattern;
     final color = SequencerScreen._laneColor(lane);
     final drum = _drumOf[lane];
+    final list = drum == null ? _laneList(p) : null;
 
     return SizedBox(
       height: SequencerScreen.laneH,
@@ -383,40 +393,46 @@ class _LaneCells extends StatelessWidget {
               color: color,
               playhead: s == playStep,
               beatGroup: s ~/ p.stepsPerBeat,
-              active: drum != null
-                  ? p.drums[drum]![s]
-                  : (lane == _Lane.bass ? p.bass[s] != null : p.chords[s] != null),
-              label: _label(p, s, drum),
-              onTap: () => _onTap(context, s, drum),
+              active: drum != null ? p.drums[drum]![s] : list![s] != null,
+              label: drum != null || list![s] == null
+                  ? null
+                  : _rowLabel(p, list[s]!),
+              onTap: () => drum != null
+                  ? seq.toggleDrum(drum, s)
+                  : _pickPitch(context, s),
             ),
         ],
       ),
     );
   }
 
-  String? _label(SequencerPattern p, int s, DrumKind? drum) {
-    if (drum != null) return null;
-    if (lane == _Lane.bass) {
-      final r = p.bass[s];
-      return r == null ? null : Music.bassLabel(p.root, p.scale, r);
-    }
-    final d = p.chords[s];
-    return d == null ? null : Music.chordLabel(p.root, p.scale, d);
-  }
+  List<int?> _laneList(SequencerPattern p) => switch (lane) {
+        _Lane.bass => p.bass,
+        _Lane.chord => p.chords,
+        _ => p.lead,
+      };
 
-  void _onTap(BuildContext context, int s, DrumKind? drum) {
-    if (drum != null) {
-      seq.toggleDrum(drum, s);
-    } else {
-      _pickPitch(context, s);
-    }
-  }
+  int get _rowCount => switch (lane) {
+        _Lane.bass => Music.bassRows,
+        _Lane.chord => Music.chordRows,
+        _ => Music.leadRows,
+      };
+
+  String _rowLabel(SequencerPattern p, int i) => switch (lane) {
+        _Lane.bass => Music.bassLabel(p.root, p.scale, i),
+        _Lane.chord => Music.chordLabel(p.root, p.scale, i),
+        _ => Music.leadLabel(p.root, p.scale, i),
+      };
+
+  void _setRow(int step, int? value) => switch (lane) {
+        _Lane.bass => seq.setBass(step, value),
+        _Lane.chord => seq.setChord(step, value),
+        _ => seq.setLead(step, value),
+      };
 
   Future<void> _pickPitch(BuildContext context, int step) async {
     final p = seq.pattern;
-    final isBass = lane == _Lane.bass;
-    final count = isBass ? Music.bassRows : Music.chordRows;
-    final current = isBass ? p.bass[step] : p.chords[step];
+    final current = _laneList(p)[step];
     final color = SequencerScreen._laneColor(lane);
 
     final result = await showModalBottomSheet<int>(
@@ -429,7 +445,7 @@ class _LaneCells extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isBass ? 'Bass note · step ${step + 1}' : 'Chord · step ${step + 1}',
+              '${_laneLabels[lane]} · step ${step + 1}',
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: MetroSpacing.md),
@@ -442,11 +458,9 @@ class _LaneCells extends StatelessWidget {
                   selected: current == null,
                   onSelected: (_) => Navigator.pop(ctx, -1),
                 ),
-                for (var i = 0; i < count; i++)
+                for (var i = 0; i < _rowCount; i++)
                   ChoiceChip(
-                    label: Text(isBass
-                        ? Music.bassLabel(p.root, p.scale, i)
-                        : Music.chordLabel(p.root, p.scale, i)),
+                    label: Text(_rowLabel(p, i)),
                     selected: current == i,
                     selectedColor: color.withValues(alpha: 0.35),
                     onSelected: (_) => Navigator.pop(ctx, i),
@@ -459,12 +473,7 @@ class _LaneCells extends StatelessWidget {
     );
 
     if (result == null) return; // dismissed
-    final value = result < 0 ? null : result;
-    if (isBass) {
-      seq.setBass(step, value);
-    } else {
-      seq.setChord(step, value);
-    }
+    _setRow(step, result < 0 ? null : result);
   }
 }
 
@@ -519,26 +528,49 @@ class _Cell extends StatelessWidget {
   }
 }
 
-/// Bottom-sheet mixer: a volume slider per track.
+/// Bottom-sheet mixer: per-track volume, plus a waveform selector for each of
+/// the pitched (bass / chord / lead) synth voices.
 class _Mixer extends StatelessWidget {
   const _Mixer();
+
+  static const _waveLabel = {
+    SynthWave.sine: 'sine',
+    SynthWave.triangle: 'tri',
+    SynthWave.saw: 'saw',
+    SynthWave.square: 'square',
+  };
 
   @override
   Widget build(BuildContext context) {
     final seq = context.watch<SequencerController>();
     final p = seq.pattern;
-    Widget row(String name, double value, ValueChanged<double> onChanged) {
+
+    Widget row(String name, double value, ValueChanged<double> onChanged,
+        {Widget? trailing}) {
       return Row(
         children: [
-          SizedBox(width: 64, child: Text(name)),
-          Expanded(
-            child: Slider(value: value, onChanged: onChanged),
-          ),
+          SizedBox(width: 56, child: Text(name)),
+          Expanded(child: Slider(value: value, onChanged: onChanged)),
+          ?trailing,
         ],
       );
     }
 
-    return Padding(
+    Widget waveDropdown(SynthWave value, ValueChanged<SynthWave> onChanged) {
+      return DropdownButton<SynthWave>(
+        value: value,
+        underline: const SizedBox.shrink(),
+        borderRadius: BorderRadius.circular(kRadius),
+        dropdownColor: MetroColors.surface,
+        items: [
+          for (final w in SynthWave.values)
+            DropdownMenuItem(value: w, child: Text(_waveLabel[w]!)),
+        ],
+        onChanged: (w) => w != null ? onChanged(w) : null,
+      );
+    }
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -550,8 +582,12 @@ class _Mixer extends StatelessWidget {
           for (final k in DrumKind.values)
             row(_drumName(k), p.drumVol[k] ?? 0.9,
                 (v) => seq.setDrumVolume(k, v)),
-          row('Bass', p.bassVol, seq.setBassVolume),
-          row('Chord', p.chordVol, seq.setChordVolume),
+          row('Bass', p.bassVol, seq.setBassVolume,
+              trailing: waveDropdown(p.bassWave, seq.setBassWave)),
+          row('Chord', p.chordVol, seq.setChordVolume,
+              trailing: waveDropdown(p.chordWave, seq.setChordWave)),
+          row('Lead', p.leadVol, seq.setLeadVolume,
+              trailing: waveDropdown(p.leadWave, seq.setLeadWave)),
         ],
       ),
     );

@@ -9,6 +9,7 @@ class MetroColors {
   static const mute = Color(0xFF455A64);
   static const sub = Color(0xFF80CBC4);
   static const poly = Color(0xFFFFB300);
+  static const lead = Color(0xFFFF6EC7); // sequencer lead synth (pink)
 
   // Looper channel transport states. `stopped` happens to match `poly` today,
   // but it is kept separate so tweaking one voice never silently recolors the

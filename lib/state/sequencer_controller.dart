@@ -43,7 +43,7 @@ class SequencerController extends ChangeNotifier {
     await _audio.init();
     final saved = await _load();
     if (saved != null) _pattern = saved;
-    await _audio.setKey(_pattern.root, _pattern.scale);
+    await _pushVoices();
     _engine.configure(
       bpm: effectiveBpm,
       steps: _pattern.steps,
@@ -79,7 +79,19 @@ class SequencerController extends ChangeNotifier {
       final degree = p.chords[step];
       if (degree != null) _audio.playChord(degree, p.chordVol);
     }
+    if (!p.leadMute) {
+      final row = p.lead[step];
+      if (row != null) _audio.playLead(row, p.leadVol);
+    }
   }
+
+  Future<void> _pushVoices() => _audio.setVoices(
+        _pattern.root,
+        _pattern.scale,
+        bassWave: _pattern.bassWave,
+        chordWave: _pattern.chordWave,
+        leadWave: _pattern.leadWave,
+      );
 
   // --- transport ---------------------------------------------------------
 
@@ -117,7 +129,7 @@ class SequencerController extends ChangeNotifier {
         stepsPerBeat: next.stepsPerBeat,
       );
     }
-    if (rekey) _audio.setKey(next.root, next.scale);
+    if (rekey) _pushVoices();
     _save();
     notifyListeners();
   }
@@ -144,6 +156,13 @@ class SequencerController extends ChangeNotifier {
     _apply(_pattern.copyWith(chords: chords));
   }
 
+  /// Set the lead note row at [step] (null = rest). Monophonic.
+  void setLead(int step, int? row) {
+    final lead = List<int?>.from(_pattern.lead);
+    lead[step] = row;
+    _apply(_pattern.copyWith(lead: lead));
+  }
+
   void setSteps(int steps) {
     if (steps == _pattern.steps) return;
     List<bool> rb(List<bool> s) =>
@@ -159,6 +178,7 @@ class SequencerController extends ChangeNotifier {
         drums: drums,
         bass: ri(_pattern.bass),
         chords: ri(_pattern.chords),
+        lead: ri(_pattern.lead),
       ),
       reconfigure: true,
     );
@@ -194,11 +214,26 @@ class SequencerController extends ChangeNotifier {
       _apply(_pattern.copyWith(chordVol: v.clamp(0.0, 1.0)));
   void toggleChordMute() =>
       _apply(_pattern.copyWith(chordMute: !_pattern.chordMute));
+  void setLeadVolume(double v) =>
+      _apply(_pattern.copyWith(leadVol: v.clamp(0.0, 1.0)));
+  void toggleLeadMute() => _apply(_pattern.copyWith(leadMute: !_pattern.leadMute));
+
+  // --- waveforms (re-render the affected voices) -------------------------
+
+  void setBassWave(SynthWave wave) =>
+      _apply(_pattern.copyWith(bassWave: wave), rekey: true);
+  void setChordWave(SynthWave wave) =>
+      _apply(_pattern.copyWith(chordWave: wave), rekey: true);
+  void setLeadWave(SynthWave wave) =>
+      _apply(_pattern.copyWith(leadWave: wave), rekey: true);
 
   void clear() => _apply(
         SequencerPattern.empty(steps: _pattern.steps).copyWith(
           root: _pattern.root,
           scale: _pattern.scale,
+          bassWave: _pattern.bassWave,
+          chordWave: _pattern.chordWave,
+          leadWave: _pattern.leadWave,
           bpmOverride: _pattern.bpmOverride,
         ),
         reconfigure: true,

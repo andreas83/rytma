@@ -35,6 +35,14 @@ void main() {
       expect(Pitch.frequencyForMidi(69), closeTo(440, 0.001)); // A4
       expect(Pitch.frequencyForMidi(57), closeTo(220, 0.001)); // A3
     });
+
+    test('lead lane spans ~two octaves above the bass', () {
+      // C major: lead row 0 == C4 (60), and the lane covers two octaves.
+      expect(Music.leadMidi(0, SynthScale.major, 0), 60); // C4
+      expect(Music.leadMidi(0, SynthScale.major, 7), 72); // C5
+      expect(Music.leadMidi(0, SynthScale.major, 14), 84); // C6
+      expect(Music.leadRows, 15);
+    });
   });
 
   group('SequencerPattern', () {
@@ -56,12 +64,16 @@ void main() {
         ..[DrumKind.kick] = kick;
       final bass = List<int?>.from(p.bass)..[4] = 2;
       final chords = List<int?>.from(p.chords)..[0] = 5;
+      final lead = List<int?>.from(p.lead)..[12] = 9;
       p = p.copyWith(
         drums: drums,
         bass: bass,
         chords: chords,
+        lead: lead,
         root: 7,
         scale: SynthScale.minor,
+        bassWave: SynthWave.square,
+        leadWave: SynthWave.saw,
         bpmOverride: 96,
       );
 
@@ -76,6 +88,10 @@ void main() {
       expect(restored.drums[DrumKind.snare]!.every((b) => !b), isTrue);
       expect(restored.bass[4], 2);
       expect(restored.chords[0], 5);
+      expect(restored.lead[12], 9);
+      expect(restored.bassWave, SynthWave.square);
+      expect(restored.leadWave, SynthWave.saw);
+      expect(restored.chordWave, SynthWave.triangle); // default preserved
     });
 
     test('copyWith can clear the tempo override back to null', () {

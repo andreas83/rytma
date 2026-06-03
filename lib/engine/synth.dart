@@ -20,6 +20,9 @@ class Music {
   /// Rows offered by the chord lane (the seven diatonic triads).
   static const int chordRows = 7;
 
+  /// Rows offered by the lead lane (~two octaves of the scale).
+  static const int leadRows = 15;
+
   static const List<String> _names = [
     'C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B', //
   ];
@@ -34,6 +37,13 @@ class Music {
   static int bassMidi(int root, SynthScale scale, int row) {
     final iv = intervals(scale);
     const base = 36; // C2 region
+    return base + root + iv[row % 7] + 12 * (row ~/ 7);
+  }
+
+  /// MIDI note for a lead row in the given key (row 0 == the tonic, mid octave).
+  static int leadMidi(int root, SynthScale scale, int row) {
+    final iv = intervals(scale);
+    const base = 60; // C4 region — sits above bass/chords
     return base + root + iv[row % 7] + 12 * (row ~/ 7);
   }
 
@@ -53,6 +63,10 @@ class Music {
   static String bassLabel(int root, SynthScale scale, int row) =>
       _midiLabel(bassMidi(root, scale, row));
 
+  /// Short label for a lead row, e.g. "C4".
+  static String leadLabel(int root, SynthScale scale, int row) =>
+      _midiLabel(leadMidi(root, scale, row));
+
   /// Roman-ish label for a chord degree (uppercase = major, lowercase = minor),
   /// based on the diatonic triad quality.
   static String chordLabel(int root, SynthScale scale, int degree) {
@@ -69,9 +83,6 @@ class Music {
     return '$name$octave';
   }
 }
-
-/// Waveform for the pitched (bass / chord) voices.
-enum SynthWave { saw, triangle, square, sine }
 
 /// Generates the sequencer's instrument samples as in-memory 16-bit mono WAV
 /// data — drums (synthesized percussion) and pitched tones (oscillator + ADSR).
@@ -232,13 +243,32 @@ class Synth {
   }
 
   /// Convenience: render a bass note sample for a row in the given key.
-  static Uint8List bass(int root, SynthScale scale, int row) =>
-      tone(frequency: Pitch.frequencyForMidi(Music.bassMidi(root, scale, row)));
+  static Uint8List bass(int root, SynthScale scale, int row,
+          {SynthWave wave = SynthWave.saw}) =>
+      tone(
+        frequency: Pitch.frequencyForMidi(Music.bassMidi(root, scale, row)),
+        wave: wave,
+      );
+
+  /// Convenience: render a lead note sample (brighter, snappier) for a row.
+  static Uint8List lead(int root, SynthScale scale, int row,
+          {SynthWave wave = SynthWave.square}) =>
+      tone(
+        frequency: Pitch.frequencyForMidi(Music.leadMidi(root, scale, row)),
+        wave: wave,
+        durationMs: 300,
+        volume: 0.7,
+        releaseMs: 70,
+        sustain: 0.5,
+      );
 
   /// Convenience: render a chord sample for a diatonic degree in the given key.
-  static Uint8List chord(int root, SynthScale scale, int degree) => chordTone(
+  static Uint8List chord(int root, SynthScale scale, int degree,
+          {SynthWave wave = SynthWave.triangle}) =>
+      chordTone(
         Music.chordMidis(root, scale, degree)
             .map((m) => Pitch.frequencyForMidi(m))
             .toList(),
+        wave: wave,
       );
 }

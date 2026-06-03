@@ -15,12 +15,13 @@ basic click, it offers:
   giving a `beats : N` cross-rhythm with a color-coded visualizer and a
   selectable timbre + volume for the cross-voice.
 - **Sequencer** — a step sequencer for quick backing tracks: drum lanes (kick /
-  snare / hat / clap) plus monophonic **bass** and **chord** lanes that play in a
-  chosen **key + scale** (the lanes store row indices; `Music` maps them to
-  pitches). Adjustable pattern length (8 / 16 / 32 steps), per-track mute +
-  volume mixer, and its **own transport** that loops independently — its tempo
-  *follows the metronome's BPM* unless overridden. All sounds are synthesized at
-  runtime (`engine/synth.dart`).
+  snare / hat / clap) plus monophonic **bass**, **chord** and **lead synth**
+  lanes that play in a chosen **key + scale** (the lanes store row indices;
+  `Music` maps them to pitches). Each pitched voice has a selectable **waveform**
+  (sine / triangle / saw / square). Adjustable pattern length (8 / 16 / 32
+  steps), per-track mute + volume mixer, and its **own transport** that loops
+  independently — its tempo *follows the metronome's BPM* unless overridden. All
+  sounds are synthesized at runtime (`engine/synth.dart`).
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — a multi-channel loop station: record into any of several
