@@ -30,6 +30,7 @@ class MetronomeController extends ChangeNotifier {
       state: _state,
       onTick: _onTick,
       onBpmChanged: _onBpmChanged,
+      onBar: _onBar,
     );
   }
 
@@ -46,10 +47,23 @@ class MetronomeController extends ChangeNotifier {
   /// Latest tick, for beat-grid highlighting. Null while stopped.
   final ValueNotifier<TickEvent?> pulse = ValueNotifier(null);
 
+  /// Bar counter, incremented on each bar boundary. Transport-synced consumers
+  /// (the looper) listen to this to align to the grid.
+  final ValueNotifier<int> bar = ValueNotifier(0);
+
   MetronomeState get state => _state;
   bool get isPlaying => _isPlaying;
   bool get isInitialized => _initialized;
   List<Preset> get presets => List.unmodifiable(_presets);
+
+  /// Bar number at the most recent boundary.
+  int get currentBar => _engine.barCount;
+
+  /// Time until the next bar boundary (zero when stopped).
+  Duration get timeToNextBar => _engine.timeToNextBar;
+
+  /// Duration of one bar in milliseconds at the current tempo/meter.
+  double get barDurationMs => _engine.barDurationMs;
 
   Future<void> init() async {
     await _audio.init();
@@ -83,6 +97,8 @@ class MetronomeController extends ChangeNotifier {
     _store.saveLast(_state);
     notifyListeners();
   }
+
+  void _onBar(int barIndex) => bar.value = barIndex;
 
   void _apply(MetronomeState next) {
     _state = next;
@@ -214,6 +230,7 @@ class MetronomeController extends ChangeNotifier {
     _engine.dispose();
     _audio.dispose();
     pulse.dispose();
+    bar.dispose();
     super.dispose();
   }
 }

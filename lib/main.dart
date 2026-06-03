@@ -9,19 +9,40 @@ import 'ui/theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MetroPowerApp());
+
+  final controller = MetronomeController()..init();
+  final looper = LoopRecorder();
+  final analyzer = AudioAnalyzer();
+
+  // Drive the looper's bar-synced features from the metronome's transport.
+  controller.bar.addListener(() => looper.handleBar(controller.currentBar));
+
+  runApp(MetroPowerApp(
+    controller: controller,
+    looper: looper,
+    analyzer: analyzer,
+  ));
 }
 
 class MetroPowerApp extends StatelessWidget {
-  const MetroPowerApp({super.key});
+  const MetroPowerApp({
+    super.key,
+    required this.controller,
+    required this.looper,
+    required this.analyzer,
+  });
+
+  final MetronomeController controller;
+  final LoopRecorder looper;
+  final AudioAnalyzer analyzer;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => MetronomeController()..init()),
-        ChangeNotifierProvider(create: (_) => LoopRecorder()),
-        ChangeNotifierProvider(create: (_) => AudioAnalyzer()),
+        ChangeNotifierProvider.value(value: controller),
+        ChangeNotifierProvider.value(value: looper),
+        ChangeNotifierProvider.value(value: analyzer),
       ],
       child: MaterialApp(
         title: 'Metro Power',

@@ -14,15 +14,17 @@ class LooperScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recorder = context.watch<LoopRecorder>();
-    final state = context.watch<MetronomeController>().state;
+    final controller = context.watch<MetronomeController>();
+    final state = controller.state;
 
-    // Feed the metronome's bar length (master clock) to the looper for
-    // length quantization.
+    // Feed the metronome (master clock) to the looper: bar length for length
+    // quantization and whether the transport is running for bar-synced starts.
     final beatMs = 60000.0 / state.bpm;
     final barSamples =
         (LoopRecorder.sampleRate * state.timeSignature.beats * beatMs / 1000)
             .round();
     recorder.setBarSamples(barSamples);
+    recorder.setTransportRunning(controller.isPlaying);
 
     return Scaffold(
       appBar: AppBar(
@@ -42,16 +44,41 @@ class LooperScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            child: Row(
+              children: [
+                const Text('Fit to bars',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                SegmentedButton<LoopFit>(
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  segments: const [
+                    ButtonSegment(value: LoopFit.off, label: Text('Off')),
+                    ButtonSegment(value: LoopFit.crop, label: Text('Crop')),
+                    ButtonSegment(value: LoopFit.warp, label: Text('Warp')),
+                  ],
+                  selected: {recorder.fit},
+                  onSelectionChanged: (s) => recorder.setFit(s.first),
+                ),
+              ],
+            ),
+          ),
           SwitchListTile(
             dense: true,
-            secondary: const Icon(Icons.straighten),
-            title: const Text('Sync length to metronome'),
+            secondary: const Icon(Icons.grid_on),
+            title: const Text('Start loops on the bar'),
             subtitle: Text(
-              'Quantize loops to whole bars · ${state.bpm.round()} BPM '
-              '${state.timeSignature}',
+              controller.isPlaying
+                  ? 'Record & playback snap to the bar · ${state.bpm.round()} BPM ${state.timeSignature}'
+                  : 'Start the metronome to align loops to the grid',
             ),
-            value: recorder.syncEnabled,
-            onChanged: recorder.setSync,
+            value: recorder.quantizeStart,
+            onChanged: recorder.setQuantizeStart,
           ),
           if (recorder.error != null)
             Padding(
@@ -203,12 +230,26 @@ class _ChannelCard extends StatelessWidget {
           icon: Icons.fiber_manual_record,
           label: 'Empty — tap to record',
         );
+      case ChannelState.armedRecord:
+        return _PadStyle(
+          fill: scheme.tertiary,
+          dot: scheme.tertiary,
+          icon: Icons.fiber_manual_record,
+          label: 'Armed — records next bar',
+        );
       case ChannelState.recording:
         return _PadStyle(
           fill: scheme.error,
           dot: scheme.error,
           icon: Icons.stop_rounded,
           label: 'Recording… tap to loop',
+        );
+      case ChannelState.armedStop:
+        return _PadStyle(
+          fill: scheme.error,
+          dot: scheme.tertiary,
+          icon: Icons.stop_rounded,
+          label: 'Armed — loops next bar',
         );
       case ChannelState.playing:
         return const _PadStyle(

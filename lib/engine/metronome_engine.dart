@@ -50,6 +50,17 @@ class MetronomeEngine {
 
   bool get isRunning => _running;
   int get barCount => _barCount;
+  double get barDurationMs => _barDurationMs;
+
+  /// Time remaining until the next bar boundary, for transport-synced features
+  /// (e.g. the looper). Zero when stopped.
+  Duration get timeToNextBar {
+    if (!_running || _barDurationMs <= 0) return Duration.zero;
+    final nowMs = _clock.elapsedMicroseconds / 1000.0;
+    final remaining =
+        (_barDurationMs - (nowMs - _loopStartMs)).clamp(0.0, _barDurationMs);
+    return Duration(microseconds: (remaining * 1000).round());
+  }
 
   /// Replace the active settings; safe to call while running.
   void updateState(MetronomeState state) {

@@ -19,7 +19,9 @@ basic click, it offers:
 - **Looper** — a multi-channel loop station: record into any of several
   channels that loop together (mixed by the shared audio engine, so they play
   simultaneously), each with volume / mute / play-stop / one-shot and per-loop
-  **trim**, plus optional length-sync to the metronome's bar grid.
+  **trim**. Record and playback can **phase-lock to the metronome's bar grid**,
+  and an off-length take can be **warped** (time-stretched, no pitch change) or
+  cropped to whole bars.
 - **Tuner (Stimmgerät)** — chromatic pitch detection (note + cents) from the mic,
   using the YIN algorithm (`engine/pitch.dart`).
 - **Spectrogram** — live FFT heatmap of the mic input, optionally overlaying the
@@ -68,8 +70,9 @@ lib/
     tick_event.dart          ClickType enum + TickEvent.
     wav.dart                 Shared 16-bit PCM WAV encoder (clicks + loops).
     click_synth.dart         Generates 16-bit mono WAV click samples in memory.
-    metronome_engine.dart    Stopwatch + look-ahead scheduler.
+    metronome_engine.dart    Stopwatch + look-ahead scheduler; bar callback.
     pitch.dart               Frequency→note math + YIN pitch detector.
+    time_stretch.dart        WSOLA time-stretch (loop "warp", pitch-preserving).
   services/                  Platform/plugin wrappers.
     audio_clicks.dart        flutter_soloud wrapper; loads synthesized clicks.
     loop_recorder.dart       Multi-channel looper: record (PCM) + soloud playback.
@@ -132,8 +135,16 @@ bar, producing a `timeSignature.beats : polyPulses` ratio.
 The **looper** (`LoopRecorder`) is an independent `ChangeNotifier` provider. It
 records mic PCM into memory and plays each channel as its own voice in the
 shared `SoLoud` engine, so channels mix and play simultaneously. The Looper
-screen feeds it the current bar length (samples) so loops can be quantized to
-the metronome's grid (the master clock); trim slices the recorded buffer.
+screen feeds it the current bar length (samples) and transport state; trim
+slices the recorded buffer, and `LoopFit` (off/crop/warp) matches a take's
+length to whole bars (`engine/time_stretch.dart` for the pitch-preserving warp).
+
+**Transport sync:** the engine's `onBar` callback is surfaced by the controller
+as a `bar` `ValueNotifier` (plus `currentBar` / `timeToNextBar` getters);
+`main.dart` wires `controller.bar` to `LoopRecorder.handleBar`, which begins
+*armed* recordings, finalizes them, and re-seeks looping voices on their loop
+boundaries so channels stay phase-locked to the grid. The looper never imports
+the controller — the composition root does the wiring.
 
 The **analyzer** (`AudioAnalyzer`, also an independent provider) streams live
 PCM from the mic (`record.startStream`), runs an FFT (`fftea`) for the

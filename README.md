@@ -19,7 +19,9 @@ and Web — built for musicians who need more than a plain click.
     clock.
 - **Looper** — a multi-channel loop station: record into several channels that
   loop and play **together**, each with its own volume, mute, play/stop,
-  one-shot, and **trim**; loops can be length-synced to the metronome's bars.
+  one-shot, and **trim**. Record/playback can **phase-lock to the metronome's
+  bars**, and an off-length take can be **warped** (pitch-preserving
+  time-stretch) or cropped to fit the grid.
 - **Tuner (Stimmgerät)** — chromatic instrument tuner with a cents needle and
   frequency readout (A4 = 440 Hz).
 - **Spectrogram** — live scrolling FFT view of the incoming audio, with an
