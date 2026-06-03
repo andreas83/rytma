@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,6 +25,7 @@ class SequencerController extends ChangeNotifier {
 
   final SynthAudio _audio;
   late final SequencerEngine _engine;
+  final Random _rng = Random();
 
   SequencerPattern _pattern = SequencerPattern.empty();
   bool _isPlaying = false;
@@ -48,6 +50,7 @@ class SequencerController extends ChangeNotifier {
       bpm: effectiveBpm,
       steps: _pattern.steps,
       stepsPerBeat: _pattern.stepsPerBeat,
+      swing: _pattern.swing,
     );
     _initialized = true;
     notifyListeners();
@@ -63,25 +66,36 @@ class SequencerController extends ChangeNotifier {
     }
   }
 
+  /// Roll a step's probability dice (always true at 1.0).
+  bool _hit(double prob) => prob >= 1.0 || _rng.nextDouble() < prob;
+
   void _onStep(int step) {
     currentStep.value = step;
     final p = _pattern;
     for (final k in DrumKind.values) {
-      if (p.drumMute[k] != true && p.drums[k]![step]) {
-        _audio.playDrum(k, p.drumVol[k] ?? 0.9);
+      if (p.drumMute[k] != true &&
+          p.drums[k]![step] &&
+          _hit(p.drumProb[k]![step])) {
+        _audio.playDrum(k, (p.drumVol[k] ?? 0.9) * p.drumVelocity[k]![step].gain);
       }
     }
     if (!p.bassMute) {
       final row = p.bass[step];
-      if (row != null) _audio.playBass(row, p.bassVol);
+      if (row != null && _hit(p.bassProb[step])) {
+        _audio.playBass(row, p.bassVol * p.bassVelocity[step].gain);
+      }
     }
     if (!p.chordMute) {
       final degree = p.chords[step];
-      if (degree != null) _audio.playChord(degree, p.chordVol);
+      if (degree != null && _hit(p.chordProb[step])) {
+        _audio.playChord(degree, p.chordVol * p.chordVelocity[step].gain);
+      }
     }
     if (!p.leadMute) {
       final row = p.lead[step];
-      if (row != null) _audio.playLead(row, p.leadVol);
+      if (row != null && _hit(p.leadProb[step])) {
+        _audio.playLead(row, p.leadVol * p.leadVelocity[step].gain);
+      }
     }
   }
 
@@ -104,6 +118,7 @@ class SequencerController extends ChangeNotifier {
       bpm: effectiveBpm,
       steps: _pattern.steps,
       stepsPerBeat: _pattern.stepsPerBeat,
+      swing: _pattern.swing,
     );
     _engine.start();
     notifyListeners();
@@ -127,6 +142,7 @@ class SequencerController extends ChangeNotifier {
         bpm: effectiveBpm,
         steps: next.steps,
         stepsPerBeat: next.stepsPerBeat,
+        swing: next.swing,
       );
     }
     if (rekey) _pushVoices();
@@ -169,8 +185,16 @@ class SequencerController extends ChangeNotifier {
         List<bool>.generate(steps, (i) => i < s.length && s[i]);
     List<int?> ri(List<int?> s) =>
         List<int?>.generate(steps, (i) => i < s.length ? s[i] : null);
-    final drums = {
-      for (final k in DrumKind.values) k: rb(_pattern.drums[k]!),
+    List<StepVelocity> rv(List<StepVelocity> s) => List<StepVelocity>.generate(
+        steps, (i) => i < s.length ? s[i] : StepVelocity.normal);
+    List<double> rp(List<double> s) =>
+        List<double>.generate(steps, (i) => i < s.length ? s[i] : 1.0);
+    final drums = {for (final k in DrumKind.values) k: rb(_pattern.drums[k]!)};
+    final drumVelocity = {
+      for (final k in DrumKind.values) k: rv(_pattern.drumVelocity[k]!),
+    };
+    final drumProb = {
+      for (final k in DrumKind.values) k: rp(_pattern.drumProb[k]!),
     };
     _apply(
       _pattern.copyWith(
@@ -179,6 +203,14 @@ class SequencerController extends ChangeNotifier {
         bass: ri(_pattern.bass),
         chords: ri(_pattern.chords),
         lead: ri(_pattern.lead),
+        drumVelocity: drumVelocity,
+        bassVelocity: rv(_pattern.bassVelocity),
+        chordVelocity: rv(_pattern.chordVelocity),
+        leadVelocity: rv(_pattern.leadVelocity),
+        drumProb: drumProb,
+        bassProb: rp(_pattern.bassProb),
+        chordProb: rp(_pattern.chordProb),
+        leadProb: rp(_pattern.leadProb),
       ),
       reconfigure: true,
     );
@@ -234,10 +266,58 @@ class SequencerController extends ChangeNotifier {
           bassWave: _pattern.bassWave,
           chordWave: _pattern.chordWave,
           leadWave: _pattern.leadWave,
+          swing: _pattern.swing,
           bpmOverride: _pattern.bpmOverride,
         ),
         reconfigure: true,
       );
+
+  // --- groove (swing, per-step velocity + probability) -------------------
+
+  void setSwing(double swing) =>
+      _apply(_pattern.copyWith(swing: swing.clamp(0.0, 0.5)), reconfigure: true);
+
+  void setDrumVelocity(DrumKind kind, int step, StepVelocity v) {
+    final list = List<StepVelocity>.from(_pattern.drumVelocity[kind]!);
+    list[step] = v;
+    final map = Map<DrumKind, List<StepVelocity>>.from(_pattern.drumVelocity);
+    map[kind] = list;
+    _apply(_pattern.copyWith(drumVelocity: map));
+  }
+
+  void setDrumProbability(DrumKind kind, int step, double p) {
+    final list = List<double>.from(_pattern.drumProb[kind]!);
+    list[step] = p.clamp(0.0, 1.0);
+    final map = Map<DrumKind, List<double>>.from(_pattern.drumProb);
+    map[kind] = list;
+    _apply(_pattern.copyWith(drumProb: map));
+  }
+
+  void setBassVelocity(int step, StepVelocity v) => _apply(
+      _pattern.copyWith(bassVelocity: _withVel(_pattern.bassVelocity, step, v)));
+  void setChordVelocity(int step, StepVelocity v) => _apply(_pattern.copyWith(
+      chordVelocity: _withVel(_pattern.chordVelocity, step, v)));
+  void setLeadVelocity(int step, StepVelocity v) => _apply(
+      _pattern.copyWith(leadVelocity: _withVel(_pattern.leadVelocity, step, v)));
+
+  void setBassProbability(int step, double p) => _apply(
+      _pattern.copyWith(bassProb: _withProb(_pattern.bassProb, step, p)));
+  void setChordProbability(int step, double p) => _apply(
+      _pattern.copyWith(chordProb: _withProb(_pattern.chordProb, step, p)));
+  void setLeadProbability(int step, double p) => _apply(
+      _pattern.copyWith(leadProb: _withProb(_pattern.leadProb, step, p)));
+
+  List<StepVelocity> _withVel(List<StepVelocity> src, int step, StepVelocity v) {
+    final list = List<StepVelocity>.from(src);
+    list[step] = v;
+    return list;
+  }
+
+  List<double> _withProb(List<double> src, int step, double p) {
+    final list = List<double>.from(src);
+    list[step] = p.clamp(0.0, 1.0);
+    return list;
+  }
 
   // --- persistence -------------------------------------------------------
 

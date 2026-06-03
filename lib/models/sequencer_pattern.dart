@@ -7,13 +7,26 @@ enum SynthScale { major, minor }
 /// Oscillator waveform for the pitched (bass / chord / lead) voices.
 enum SynthWave { sine, triangle, saw, square }
 
+/// Per-step dynamics: a ghost (soft), normal, or accented (loud) hit.
+enum StepVelocity { ghost, normal, accent }
+
+/// Volume multiplier each [StepVelocity] applies on top of the track volume.
+extension StepVelocityGain on StepVelocity {
+  double get gain => switch (this) {
+        StepVelocity.ghost => 0.45,
+        StepVelocity.normal => 1.0,
+        StepVelocity.accent => 1.3,
+      };
+}
+
 /// Allowed pattern lengths (steps), selectable by the user.
 const List<int> kSequencerLengths = [8, 16, 32];
 
 /// A serializable step-sequencer pattern: drum on/off grids plus monophonic
 /// bass, chord and lead lanes (each step holds a *row index* — the key/scale
-/// maps it to a pitch), a musical key, per-track mix + waveform, and an optional
-/// tempo override.
+/// maps it to a pitch), a musical key, per-track mix + waveform, per-step
+/// dynamics (velocity + probability), a swing amount, and an optional tempo
+/// override.
 ///
 /// Immutable; edits go through [copyWith] (the controller rebuilds the affected
 /// list/map). Reads tolerantly from JSON so older saves still load.
@@ -45,6 +58,21 @@ class SequencerPattern {
   final SynthWave chordWave;
   final SynthWave leadWave;
 
+  /// Per-step velocity (dynamics), each list [steps] long.
+  final Map<DrumKind, List<StepVelocity>> drumVelocity;
+  final List<StepVelocity> bassVelocity;
+  final List<StepVelocity> chordVelocity;
+  final List<StepVelocity> leadVelocity;
+
+  /// Per-step trigger probability (0..1), each list [steps] long.
+  final Map<DrumKind, List<double>> drumProb;
+  final List<double> bassProb;
+  final List<double> chordProb;
+  final List<double> leadProb;
+
+  /// Swing: fraction of a step the off-beats are delayed (0 = straight).
+  final double swing;
+
   /// Tempo in BPM; null means "follow the metronome's tempo".
   final double? bpmOverride;
 
@@ -68,20 +96,30 @@ class SequencerPattern {
     required this.bassWave,
     required this.chordWave,
     required this.leadWave,
+    required this.drumVelocity,
+    required this.bassVelocity,
+    required this.chordVelocity,
+    required this.leadVelocity,
+    required this.drumProb,
+    required this.bassProb,
+    required this.chordProb,
+    required this.leadProb,
+    required this.swing,
     required this.bpmOverride,
   });
 
   /// A blank pattern of [steps] length.
   factory SequencerPattern.empty({int steps = 16}) {
-    final drums = {
-      for (final k in DrumKind.values) k: List<bool>.filled(steps, false),
-    };
+    List<StepVelocity> vel() => List.filled(steps, StepVelocity.normal);
+    List<double> prob() => List.filled(steps, 1.0);
     return SequencerPattern(
       steps: steps,
       stepsPerBeat: 4,
       root: 0,
       scale: SynthScale.major,
-      drums: drums,
+      drums: {
+        for (final k in DrumKind.values) k: List<bool>.filled(steps, false),
+      },
       bass: List<int?>.filled(steps, null),
       chords: List<int?>.filled(steps, null),
       lead: List<int?>.filled(steps, null),
@@ -96,6 +134,15 @@ class SequencerPattern {
       bassWave: SynthWave.saw,
       chordWave: SynthWave.triangle,
       leadWave: SynthWave.square,
+      drumVelocity: {for (final k in DrumKind.values) k: vel()},
+      bassVelocity: vel(),
+      chordVelocity: vel(),
+      leadVelocity: vel(),
+      drumProb: {for (final k in DrumKind.values) k: prob()},
+      bassProb: prob(),
+      chordProb: prob(),
+      leadProb: prob(),
+      swing: 0,
       bpmOverride: null,
     );
   }
@@ -120,6 +167,15 @@ class SequencerPattern {
     SynthWave? bassWave,
     SynthWave? chordWave,
     SynthWave? leadWave,
+    Map<DrumKind, List<StepVelocity>>? drumVelocity,
+    List<StepVelocity>? bassVelocity,
+    List<StepVelocity>? chordVelocity,
+    List<StepVelocity>? leadVelocity,
+    Map<DrumKind, List<double>>? drumProb,
+    List<double>? bassProb,
+    List<double>? chordProb,
+    List<double>? leadProb,
+    double? swing,
     Object? bpmOverride = _unset,
   }) {
     return SequencerPattern(
@@ -142,6 +198,15 @@ class SequencerPattern {
       bassWave: bassWave ?? this.bassWave,
       chordWave: chordWave ?? this.chordWave,
       leadWave: leadWave ?? this.leadWave,
+      drumVelocity: drumVelocity ?? this.drumVelocity,
+      bassVelocity: bassVelocity ?? this.bassVelocity,
+      chordVelocity: chordVelocity ?? this.chordVelocity,
+      leadVelocity: leadVelocity ?? this.leadVelocity,
+      drumProb: drumProb ?? this.drumProb,
+      bassProb: bassProb ?? this.bassProb,
+      chordProb: chordProb ?? this.chordProb,
+      leadProb: leadProb ?? this.leadProb,
+      swing: swing ?? this.swing,
       bpmOverride: bpmOverride == _unset
           ? this.bpmOverride
           : (bpmOverride as num?)?.toDouble(),
@@ -168,6 +233,18 @@ class SequencerPattern {
         'bassWave': bassWave.name,
         'chordWave': chordWave.name,
         'leadWave': leadWave.name,
+        'drumVelocity': {
+          for (final e in drumVelocity.entries)
+            e.key.name: [for (final v in e.value) v.name],
+        },
+        'bassVelocity': [for (final v in bassVelocity) v.name],
+        'chordVelocity': [for (final v in chordVelocity) v.name],
+        'leadVelocity': [for (final v in leadVelocity) v.name],
+        'drumProb': {for (final e in drumProb.entries) e.key.name: e.value},
+        'bassProb': bassProb,
+        'chordProb': chordProb,
+        'leadProb': leadProb,
+        'swing': swing,
         'bpmOverride': bpmOverride,
       };
 
@@ -181,10 +258,21 @@ class SequencerPattern {
         _fit<int?>(raw, steps, null, (v) => (v as num?)?.toInt());
     SynthWave wave(Object? raw, SynthWave fallback) => SynthWave.values
         .firstWhere((w) => w.name == raw, orElse: () => fallback);
+    List<StepVelocity> vels(Object? raw) => _fit<StepVelocity>(
+          raw,
+          steps,
+          StepVelocity.normal,
+          (v) => StepVelocity.values
+              .firstWhere((x) => x.name == v, orElse: () => StepVelocity.normal),
+        );
+    List<double> probs(Object? raw) => _fit<double>(
+        raw, steps, 1.0, (v) => (v as num?)?.toDouble().clamp(0.0, 1.0) ?? 1.0);
 
     final drumsJson = json['drums'] as Map<String, dynamic>? ?? const {};
     final volJson = json['drumVol'] as Map<String, dynamic>? ?? const {};
     final muteJson = json['drumMute'] as Map<String, dynamic>? ?? const {};
+    final dVelJson = json['drumVelocity'] as Map<String, dynamic>? ?? const {};
+    final dProbJson = json['drumProb'] as Map<String, dynamic>? ?? const {};
 
     return SequencerPattern(
       steps: steps,
@@ -219,6 +307,30 @@ class SequencerPattern {
       bassWave: wave(json['bassWave'], SynthWave.saw),
       chordWave: wave(json['chordWave'], SynthWave.triangle),
       leadWave: wave(json['leadWave'], SynthWave.square),
+      drumVelocity: {
+        for (final k in DrumKind.values)
+          k: dVelJson.containsKey(k.name)
+              ? vels(dVelJson[k.name])
+              : base.drumVelocity[k]!,
+      },
+      bassVelocity:
+          json.containsKey('bassVelocity') ? vels(json['bassVelocity']) : base.bassVelocity,
+      chordVelocity: json.containsKey('chordVelocity')
+          ? vels(json['chordVelocity'])
+          : base.chordVelocity,
+      leadVelocity:
+          json.containsKey('leadVelocity') ? vels(json['leadVelocity']) : base.leadVelocity,
+      drumProb: {
+        for (final k in DrumKind.values)
+          k: dProbJson.containsKey(k.name)
+              ? probs(dProbJson[k.name])
+              : base.drumProb[k]!,
+      },
+      bassProb: json.containsKey('bassProb') ? probs(json['bassProb']) : base.bassProb,
+      chordProb:
+          json.containsKey('chordProb') ? probs(json['chordProb']) : base.chordProb,
+      leadProb: json.containsKey('leadProb') ? probs(json['leadProb']) : base.leadProb,
+      swing: ((json['swing'] as num?)?.toDouble() ?? 0).clamp(0.0, 0.5),
       bpmOverride: (json['bpmOverride'] as num?)?.toDouble(),
     );
   }

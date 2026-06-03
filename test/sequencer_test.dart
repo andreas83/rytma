@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metro_power/engine/pitch.dart';
+import 'package:metro_power/engine/sequencer_engine.dart';
 import 'package:metro_power/engine/synth.dart';
 import 'package:metro_power/models/sequencer_pattern.dart';
 
@@ -115,6 +116,67 @@ void main() {
       expect(restored.bass.length, 8);
       expect(restored.scale, SynthScale.major);
       expect(restored.bpmOverride, isNull);
+      // Old saves (no groove keys) fall back to neutral dynamics.
+      expect(restored.swing, 0);
+      expect(restored.bassVelocity.length, 8);
+      expect(restored.bassVelocity.every((v) => v == StepVelocity.normal),
+          isTrue);
+      expect(restored.drumProb[DrumKind.kick]!.length, 8);
+      expect(restored.drumProb[DrumKind.kick]!.every((p) => p == 1.0), isTrue);
+    });
+  });
+
+  group('Groove & dynamics', () {
+    test('empty pattern has neutral dynamics', () {
+      final p = SequencerPattern.empty(steps: 16);
+      expect(p.swing, 0);
+      expect(p.bassVelocity, everyElement(StepVelocity.normal));
+      expect(p.leadProb, everyElement(1.0));
+      expect(p.drumVelocity[DrumKind.snare]!.length, 16);
+    });
+
+    test('velocity gains scale ghost < normal < accent', () {
+      expect(StepVelocity.ghost.gain, lessThan(StepVelocity.normal.gain));
+      expect(StepVelocity.accent.gain, greaterThan(StepVelocity.normal.gain));
+      expect(StepVelocity.normal.gain, 1.0);
+    });
+
+    test('groove survives a JSON round-trip', () {
+      var p = SequencerPattern.empty(steps: 16);
+      final bv = List<StepVelocity>.from(p.bassVelocity)..[2] = StepVelocity.accent;
+      final lp = List<double>.from(p.leadProb)..[5] = 0.5;
+      final kv = Map<DrumKind, List<StepVelocity>>.from(p.drumVelocity);
+      kv[DrumKind.kick] = List<StepVelocity>.from(kv[DrumKind.kick]!)
+        ..[0] = StepVelocity.ghost;
+      p = p.copyWith(
+          bassVelocity: bv, leadProb: lp, drumVelocity: kv, swing: 0.4);
+
+      final restored =
+          SequencerPattern.fromJson(jsonDecode(jsonEncode(p.toJson())));
+      expect(restored.swing, closeTo(0.4, 1e-9));
+      expect(restored.bassVelocity[2], StepVelocity.accent);
+      expect(restored.leadProb[5], 0.5);
+      expect(restored.drumVelocity[DrumKind.kick]![0], StepVelocity.ghost);
+    });
+
+    test('swing is clamped to 0..0.5 on load', () {
+      final restored = SequencerPattern.fromJson({'steps': 16, 'swing': 9.0});
+      expect(restored.swing, 0.5);
+    });
+  });
+
+  group('SequencerEngine swing', () {
+    test('off-beats are delayed by swing·stepMs, staying ordered', () {
+      final engine = SequencerEngine(onStep: (_) {});
+      engine.configure(bpm: 120, steps: 16, stepsPerBeat: 4, swing: 0.4);
+      final step = engine.stepMs; // 60000/120/4 = 125 ms
+      expect(step, closeTo(125, 1e-9));
+      // On-beats land on the grid; off-beats are pushed late.
+      expect(engine.stepOffsetMs(0), 0);
+      expect(engine.stepOffsetMs(2), closeTo(2 * step, 1e-9));
+      expect(engine.stepOffsetMs(1), closeTo(step + 0.4 * step, 1e-9));
+      // ...but never reach the following on-beat → ordering preserved.
+      expect(engine.stepOffsetMs(1), lessThan(engine.stepOffsetMs(2)));
     });
   });
 }

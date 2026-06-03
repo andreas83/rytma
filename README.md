@@ -16,8 +16,10 @@ and Web — built for musicians who need more than a plain click.
   (kick / snare / hat / clap) plus **bass**, **chord** and **lead synth** lanes
   that play in a chosen **key and scale**, each with a selectable **waveform**
   (sine / triangle / saw / square). Pick a pattern length (8 / 16 / 32 steps),
-  mute and mix each track, and loop it on its own transport — the tempo follows
-  the metronome unless you set your own. Every sound is synthesized at runtime.
+  mute and mix each track, add **swing**, and long-press any step to set its
+  **velocity** (ghost / normal / accent) and **probability**. Loops on its own
+  transport — the tempo follows the metronome unless you set your own. Every
+  sound is synthesized at runtime.
 - **Training**
   - *Tempo ramp* — automatically change BPM by a step every few bars up to a
     target (great for speed-building).

@@ -393,6 +393,8 @@ class _LaneCells extends StatelessWidget {
               color: color,
               playhead: s == playStep,
               beatGroup: s ~/ p.stepsPerBeat,
+              velocity: _velAt(p, drum, s),
+              prob: _probAt(p, drum, s),
               active: drum != null ? p.drums[drum]![s] : list![s] != null,
               label: drum != null || list![s] == null
                   ? null
@@ -400,6 +402,7 @@ class _LaneCells extends StatelessWidget {
               onTap: () => drum != null
                   ? seq.toggleDrum(drum, s)
                   : _pickPitch(context, s),
+              onLongPress: () => _editDynamics(context, s),
             ),
         ],
       ),
@@ -411,6 +414,34 @@ class _LaneCells extends StatelessWidget {
         _Lane.chord => p.chords,
         _ => p.lead,
       };
+
+  StepVelocity _velAt(SequencerPattern p, DrumKind? drum, int s) =>
+      drum != null
+          ? p.drumVelocity[drum]![s]
+          : switch (lane) {
+              _Lane.bass => p.bassVelocity[s],
+              _Lane.chord => p.chordVelocity[s],
+              _ => p.leadVelocity[s],
+            };
+
+  double _probAt(SequencerPattern p, DrumKind? drum, int s) => drum != null
+      ? p.drumProb[drum]![s]
+      : switch (lane) {
+          _Lane.bass => p.bassProb[s],
+          _Lane.chord => p.chordProb[s],
+          _ => p.leadProb[s],
+        };
+
+  Future<void> _editDynamics(BuildContext context, int step) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => ChangeNotifierProvider<SequencerController>.value(
+        value: seq,
+        child: _DynamicsSheet(lane: lane, drum: _drumOf[lane], step: step),
+      ),
+    );
+  }
 
   int get _rowCount => switch (lane) {
         _Lane.bass => Music.bassRows,
@@ -483,7 +514,10 @@ class _Cell extends StatelessWidget {
     required this.active,
     required this.playhead,
     required this.beatGroup,
+    required this.velocity,
+    required this.prob,
     required this.onTap,
+    required this.onLongPress,
     this.label,
   });
 
@@ -491,29 +525,44 @@ class _Cell extends StatelessWidget {
   final bool active;
   final bool playhead;
   final int beatGroup;
+  final StepVelocity velocity;
+  final double prob;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
   final String? label;
+
+  Color get _fill {
+    if (!active) {
+      return color.withValues(alpha: beatGroup.isEven ? 0.14 : 0.07);
+    }
+    return switch (velocity) {
+      StepVelocity.ghost => color.withValues(alpha: 0.5),
+      StepVelocity.normal => color,
+      StepVelocity.accent =>
+        Color.alphaBlend(Colors.white.withValues(alpha: 0.32), color),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         width: SequencerScreen.cellW,
         margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
-        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active
-              ? color
-              : color.withValues(alpha: beatGroup.isEven ? 0.14 : 0.07),
+          color: _fill,
           borderRadius: BorderRadius.circular(7),
           border: playhead
               ? Border.all(color: Colors.white, width: 2)
               : Border.all(color: Colors.transparent, width: 2),
         ),
-        child: label == null
-            ? null
-            : Text(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (label != null)
+              Text(
                 label!,
                 maxLines: 1,
                 overflow: TextOverflow.clip,
@@ -523,6 +572,126 @@ class _Cell extends StatelessWidget {
                   color: active ? Colors.black : Colors.white70,
                 ),
               ),
+            // A small dot marks a step that only triggers some of the time.
+            if (active && prob < 1.0)
+              Positioned(
+                top: 3,
+                right: 3,
+                child: Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom-sheet editor for a single cell's dynamics: velocity + probability.
+class _DynamicsSheet extends StatelessWidget {
+  const _DynamicsSheet(
+      {required this.lane, required this.drum, required this.step});
+
+  final _Lane lane;
+  final DrumKind? drum;
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    final seq = context.watch<SequencerController>();
+    final p = seq.pattern;
+    final velocity = drum != null
+        ? p.drumVelocity[drum]![step]
+        : switch (lane) {
+            _Lane.bass => p.bassVelocity[step],
+            _Lane.chord => p.chordVelocity[step],
+            _ => p.leadVelocity[step],
+          };
+    final prob = drum != null
+        ? p.drumProb[drum]![step]
+        : switch (lane) {
+            _Lane.bass => p.bassProb[step],
+            _Lane.chord => p.chordProb[step],
+            _ => p.leadProb[step],
+          };
+
+    void setVelocity(StepVelocity v) {
+      if (drum != null) {
+        seq.setDrumVelocity(drum!, step, v);
+      } else {
+        switch (lane) {
+          case _Lane.bass:
+            seq.setBassVelocity(step, v);
+          case _Lane.chord:
+            seq.setChordVelocity(step, v);
+          default:
+            seq.setLeadVelocity(step, v);
+        }
+      }
+    }
+
+    void setProb(double value) {
+      if (drum != null) {
+        seq.setDrumProbability(drum!, step, value);
+      } else {
+        switch (lane) {
+          case _Lane.bass:
+            seq.setBassProbability(step, value);
+          case _Lane.chord:
+            seq.setChordProbability(step, value);
+          default:
+            seq.setLeadProbability(step, value);
+        }
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${_laneLabels[lane]} · step ${step + 1}',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          const SizedBox(height: MetroSpacing.md),
+          const Text('Velocity'),
+          const SizedBox(height: MetroSpacing.xs),
+          SegmentedButton<StepVelocity>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: StepVelocity.ghost, label: Text('Ghost')),
+              ButtonSegment(value: StepVelocity.normal, label: Text('Normal')),
+              ButtonSegment(value: StepVelocity.accent, label: Text('Accent')),
+            ],
+            selected: {velocity},
+            onSelectionChanged: (s) => setVelocity(s.first),
+          ),
+          const SizedBox(height: MetroSpacing.md),
+          Row(
+            children: [
+              const Text('Chance'),
+              Expanded(
+                child: Slider(
+                  value: prob,
+                  divisions: 20,
+                  label: '${(prob * 100).round()}%',
+                  onChanged: setProb,
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                child: Text('${(prob * 100).round()}%',
+                    textAlign: TextAlign.end),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -579,6 +748,26 @@ class _Mixer extends StatelessWidget {
           const Text('Mixer',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: MetroSpacing.sm),
+          Row(
+            children: [
+              const SizedBox(width: 56, child: Text('Swing')),
+              Expanded(
+                child: Slider(
+                  value: p.swing,
+                  max: 0.5,
+                  divisions: 10,
+                  label: '${(p.swing * 200).round()}%',
+                  onChanged: seq.setSwing,
+                ),
+              ),
+              SizedBox(
+                width: 40,
+                child: Text('${(p.swing * 200).round()}%',
+                    textAlign: TextAlign.end),
+              ),
+            ],
+          ),
+          const Divider(),
           for (final k in DrumKind.values)
             row(_drumName(k), p.drumVol[k] ?? 0.9,
                 (v) => seq.setDrumVolume(k, v)),

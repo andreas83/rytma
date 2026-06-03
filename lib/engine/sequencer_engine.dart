@@ -19,6 +19,7 @@ class SequencerEngine {
   double _bpm = 120;
   int _steps = 16;
   int _stepsPerBeat = 4; // sixteenth-note grid
+  double _swing = 0; // fraction of a step the off-beats are delayed
 
   final Stopwatch _clock = Stopwatch();
   Timer? _timer;
@@ -30,13 +31,23 @@ class SequencerEngine {
   bool get isRunning => _running;
   double get stepMs => _stepMs;
 
-  /// Update tempo / grid; safe to call while running. When running, the loop is
-  /// re-anchored to *now* so the current step boundary stays continuous and a
-  /// tempo change doesn't cause a burst or gap.
-  void configure({double? bpm, int? steps, int? stepsPerBeat}) {
+  /// Offset of [step] from the loop start (ms), including swing. Off-beats (odd
+  /// steps) are delayed by up to half a step, which keeps offsets monotonic (an
+  /// off-beat never reaches its following on-beat). Exposed for testing.
+  double stepOffsetMs(int step) =>
+      step * _stepMs + (step.isOdd ? _swing * _stepMs : 0.0);
+
+  /// The scheduled time of [step] within the current loop, including swing.
+  double _dueFor(int step) => _loopStartMs + stepOffsetMs(step);
+
+  /// Update tempo / grid / swing; safe to call while running. When running, the
+  /// loop is re-anchored to *now* so the current step boundary stays continuous
+  /// and a tempo change doesn't cause a burst or gap.
+  void configure({double? bpm, int? steps, int? stepsPerBeat, double? swing}) {
     if (bpm != null && bpm > 0) _bpm = bpm;
     if (steps != null && steps > 0) _steps = steps;
     if (stepsPerBeat != null && stepsPerBeat > 0) _stepsPerBeat = stepsPerBeat;
+    if (swing != null) _swing = swing.clamp(0.0, 0.5);
     final newStepMs = 60000.0 / _bpm / _stepsPerBeat;
     if (_running) {
       final now = _clock.elapsedMicroseconds / 1000.0;
@@ -79,7 +90,7 @@ class SequencerEngine {
         _loopStartMs += _steps * _stepMs;
         _next = 0;
       }
-      final due = _loopStartMs + _next * _stepMs;
+      final due = _dueFor(_next);
       if (due <= now) {
         onStep(_next);
         _next++;
