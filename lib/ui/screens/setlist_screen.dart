@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../models/factory_presets.dart';
 import '../../models/preset.dart';
 import '../../state/metronome_controller.dart';
+import '../theme.dart';
+import '../widgets/section_label.dart';
 
 /// Lists built-in and saved presets for quick recall. Loading a preset applies
 /// its full [MetronomeState] (tempo, meter, accents, subdivision, polyrhythm,
@@ -21,19 +23,13 @@ class SetlistScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          const _SectionHeader('Built-in'),
+          const SectionLabel('Built-in',
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4)),
           for (final preset in FactoryPresets.all)
-            _PresetTile(preset: preset),
-          const _SectionHeader('My presets'),
-          if (userPresets.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Text(
-                'No saved presets yet — tap “Save as preset” on the Metronome '
-                'screen to store your current setup.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
+            _PresetTile(preset: preset, builtIn: true),
+          const SectionLabel('My presets',
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4)),
+          if (userPresets.isEmpty) const _EmptyPresets(),
           for (final preset in userPresets)
             _PresetTile(preset: preset, onDelete: () => controller.deletePreset(preset.id)),
         ],
@@ -42,20 +38,29 @@ class SetlistScreen extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
-  final String text;
+class _EmptyPresets extends StatelessWidget {
+  const _EmptyPresets();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.primary,
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.symmetric(
+          horizontal: MetroSpacing.md, vertical: MetroSpacing.xs),
+      child: Padding(
+        padding: const EdgeInsets.all(MetroSpacing.lg),
+        child: Row(
+          children: [
+            Icon(Icons.bookmark_add_outlined, color: scheme.onSurfaceVariant),
+            const SizedBox(width: MetroSpacing.md),
+            Expanded(
+              child: Text(
+                'No saved presets yet — tap “Save as preset” on the Metronome '
+                'screen to store your current setup.',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -63,18 +68,24 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _PresetTile extends StatelessWidget {
-  const _PresetTile({required this.preset, this.onDelete});
+  const _PresetTile({required this.preset, this.onDelete, this.builtIn = false});
 
   final Preset preset;
   final VoidCallback? onDelete;
+  final bool builtIn;
 
   @override
   Widget build(BuildContext context) {
     final controller = context.read<MetronomeController>();
+    final scheme = Theme.of(context).colorScheme;
     final s = preset.state;
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      margin: const EdgeInsets.symmetric(
+          horizontal: MetroSpacing.md, vertical: MetroSpacing.xs),
       child: ListTile(
+        leading: builtIn
+            ? Icon(Icons.lock_outline, size: 20, color: scheme.onSurfaceVariant)
+            : const Icon(Icons.bookmark, size: 20),
         title: Text(preset.name),
         subtitle: Text(
           '${s.bpm.round()} BPM · ${s.timeSignature} · ${s.subdivision.label}'

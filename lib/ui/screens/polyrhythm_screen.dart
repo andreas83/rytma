@@ -34,28 +34,28 @@ class PolyrhythmScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: MetroSpacing.lg),
           SwitchListTile(
             title: const Text('Enable polyrhythm'),
             subtitle: const Text('Adds a second pulse layer over each bar'),
             value: state.polyEnabled,
             onChanged: controller.setPolyEnabled,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: MetroSpacing.sm),
           _PulseRow(
             label: 'Primary (${state.timeSignature.beats})',
             count: state.timeSignature.beats,
             voice: 0,
             color: MetroColors.normal,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: MetroSpacing.md),
           _PulseRow(
             label: 'Against (${state.polyPulses})',
             count: state.polyPulses,
             voice: 1,
             color: MetroColors.poly,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: MetroSpacing.lg),
           Text('Against pulses: ${state.polyPulses}',
               style: const TextStyle(fontWeight: FontWeight.w600)),
           Slider(
@@ -66,11 +66,11 @@ class PolyrhythmScreen extends StatelessWidget {
             label: '${state.polyPulses}',
             onChanged: (v) => controller.setPolyPulses(v.round()),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: MetroSpacing.sm),
           const Text('Sound', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
+          const SizedBox(height: MetroSpacing.xs),
           Wrap(
-            spacing: 8,
+            spacing: MetroSpacing.sm,
             children: [
               for (final t in PolyTimbre.values)
                 ChoiceChip(
@@ -99,7 +99,7 @@ class PolyrhythmScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: MetroSpacing.lg),
           const TempoControl(),
         ],
       ),

@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../models/time_signature.dart';
 import '../../state/metronome_controller.dart';
+import '../theme.dart';
 import '../widgets/beat_grid.dart';
+import '../widgets/section_label.dart';
 import '../widgets/subdivision_picker.dart';
 import '../widgets/tempo_control.dart';
 import 'setlist_screen.dart';
@@ -34,9 +36,9 @@ class MetronomeScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           const TempoControl(),
-          const SizedBox(height: 24),
-          _SectionLabel('Meter & accents'),
-          const SizedBox(height: 8),
+          const SizedBox(height: MetroSpacing.xl),
+          const SectionLabel('Meter & accents'),
+          const SizedBox(height: MetroSpacing.sm),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -55,11 +57,14 @@ class MetronomeScreen extends StatelessWidget {
                 onPressed: () => controller.setBeats(state.timeSignature.beats + 1),
                 icon: const Icon(Icons.add),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: MetroSpacing.lg),
               const Text('/', style: TextStyle(fontSize: 24)),
-              const SizedBox(width: 16),
+              const SizedBox(width: MetroSpacing.lg),
               DropdownButton<int>(
                 value: state.timeSignature.unit,
+                underline: const SizedBox.shrink(),
+                borderRadius: BorderRadius.circular(kRadius),
+                dropdownColor: MetroColors.surface,
                 items: [
                   for (final u in TimeSignature.units)
                     DropdownMenuItem(value: u, child: Text('$u')),
@@ -68,20 +73,20 @@ class MetronomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: MetroSpacing.md),
           const BeatGrid(),
-          const SizedBox(height: 8),
+          const SizedBox(height: MetroSpacing.sm),
           Center(
             child: Text(
               'Tap a beat to change its accent',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          const SizedBox(height: 24),
-          _SectionLabel('Subdivision'),
-          const SizedBox(height: 8),
+          const SizedBox(height: MetroSpacing.xl),
+          const SectionLabel('Subdivision'),
+          const SizedBox(height: MetroSpacing.sm),
           const SubdivisionPicker(),
-          const SizedBox(height: 24),
+          const SizedBox(height: MetroSpacing.xl),
           OutlinedButton.icon(
             onPressed: () => _savePresetDialog(context, controller),
             icon: const Icon(Icons.bookmark_add_outlined),
@@ -117,22 +122,5 @@ class MetronomeScreen extends StatelessWidget {
       ),
     );
     if (name != null) await controller.savePreset(name);
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        letterSpacing: 1.2,
-        fontWeight: FontWeight.w600,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-    );
   }
 }

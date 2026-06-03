@@ -16,7 +16,7 @@ class TunerGauge extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = reading;
     final inTune = r?.inTune ?? false;
-    final accent = inTune ? const Color(0xFF4CD964) : MetroColors.poly;
+    final accent = inTune ? MetroColors.playing : MetroColors.poly;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// Scrolling spectrogram: time on the x-axis (newest on the right), log-spaced
 /// frequency on the y-axis (low at the bottom), intensity mapped to color.
 /// Optional vertical lines mark metronome bar downbeats.
@@ -21,7 +23,7 @@ class SpectrogramView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(kRadius),
       child: CustomPaint(
         painter: _SpectrogramPainter(columns, markers, showBars),
         size: Size.infinite,
@@ -42,7 +44,7 @@ class _SpectrogramPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = const Color(0xFF0B0B0F),
+      Paint()..color = MetroColors.heatFloor,
     );
     if (columns.isEmpty) return;
 
@@ -79,11 +81,11 @@ class _SpectrogramPainter extends CustomPainter {
 
   /// Map 0..1 intensity to a dark→magenta→yellow heat ramp.
   Color _heat(double v) {
-    if (v <= 0) return const Color(0xFF0B0B0F);
+    if (v <= 0) return MetroColors.heatFloor;
     if (v < 0.5) {
-      return Color.lerp(const Color(0xFF1A1145), const Color(0xFFC2185B), v / 0.5)!;
+      return Color.lerp(MetroColors.heatLow, MetroColors.heatMid, v / 0.5)!;
     }
-    return Color.lerp(const Color(0xFFC2185B), const Color(0xFFFFEB3B), (v - 0.5) / 0.5)!;
+    return Color.lerp(MetroColors.heatMid, MetroColors.heatHigh, (v - 0.5) / 0.5)!;
   }
 
   @override

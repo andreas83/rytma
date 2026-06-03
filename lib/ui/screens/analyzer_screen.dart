@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../services/audio_analyzer.dart';
 import '../../state/metronome_controller.dart';
+import '../theme.dart';
 import '../widgets/spectrogram_view.dart';
 import '../widgets/tuner_gauge.dart';
 
@@ -74,17 +75,39 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
               selected: {_mode},
               onSelectionChanged: (s) => setState(() => _mode = s.first),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: MetroSpacing.md),
             _ListeningBar(analyzer: analyzer),
             if (analyzer.error != null)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  analyzer.error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                padding: const EdgeInsets.only(top: MetroSpacing.sm),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: MetroSpacing.md, vertical: MetroSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(kRadius),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          size: 20,
+                          color:
+                              Theme.of(context).colorScheme.onErrorContainer),
+                      const SizedBox(width: MetroSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          analyzer.error!,
+                          style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: MetroSpacing.lg),
             Expanded(
               child: _mode == _Mode.tuner
                   ? _TunerBody(analyzer: analyzer)

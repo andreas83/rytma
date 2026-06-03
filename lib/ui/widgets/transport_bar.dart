@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/metronome_controller.dart';
+import '../theme.dart';
 
 /// Persistent play/stop control shown above the navigation bar, with a compact
 /// readout of the current tempo and meter.
@@ -15,7 +16,7 @@ class TransportBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: const Color(0xFF16161C),
+      color: MetroColors.surfaceBar,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(

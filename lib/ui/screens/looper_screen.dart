@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../engine/tick_event.dart';
 import '../../services/loop_recorder.dart';
 import '../../state/metronome_controller.dart';
+import '../theme.dart';
 
 /// Looper screen — a multi-channel loop station. Each channel records into an
 /// in-memory loop that plays through the shared audio engine, so several
@@ -50,7 +51,7 @@ class LooperScreen extends StatelessWidget {
         children: [
           _BeatIndicator(controller: controller),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
             child: Row(
               children: [
                 const Text('Fit to bars',
@@ -87,15 +88,35 @@ class LooperScreen extends StatelessWidget {
           ),
           if (recorder.error != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                recorder.error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: MetroSpacing.md, vertical: MetroSpacing.sm),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(kRadius),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.onErrorContainer),
+                    const SizedBox(width: MetroSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        recorder.error!,
+                        style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
               itemCount: LoopRecorder.channelCount,
               itemBuilder: (context, i) =>
                   _ChannelCard(recorder: recorder, channel: recorder.channels[i]),
@@ -121,7 +142,7 @@ class _ChannelCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
         child: Column(
           children: [
             Row(
@@ -245,15 +266,15 @@ class _ChannelCard extends StatelessWidget {
         );
       case ChannelState.playing:
         return const _PadStyle(
-          fill: Color(0xFF4CD964),
-          dot: Color(0xFF4CD964),
+          fill: MetroColors.playing,
+          dot: MetroColors.playing,
           icon: Icons.pause,
           label: 'Playing',
         );
       case ChannelState.stopped:
         return const _PadStyle(
-          fill: Color(0xFFFFB300),
-          dot: Color(0xFFFFB300),
+          fill: MetroColors.stopped,
+          dot: MetroColors.stopped,
           icon: Icons.play_arrow,
           label: 'Stopped',
         );
@@ -349,7 +370,10 @@ class _RecordButton extends StatefulWidget {
 
 class _RecordButtonState extends State<_RecordButton>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker = createTicker((_) => setState(() {}));
+  late final Ticker _ticker = createTicker(_onTick);
+  Duration _elapsed = Duration.zero;
+
+  void _onTick(Duration elapsed) => setState(() => _elapsed = elapsed);
 
   bool get _animating =>
       widget.channel.state == ChannelState.recording || widget.channel.isArmed;
@@ -378,9 +402,10 @@ class _RecordButtonState extends State<_RecordButton>
     final progress = recording && bar > 0
         ? (widget.recorder.recordedSamples % bar) / bar
         : 0.0;
-    // Armed pads breathe; the value cycles 0→1→0 a bit faster than once a second.
+    // Armed pads breathe; the value cycles 0→1→0 a bit faster than once a
+    // second, driven by the ticker's elapsed time so it stays frame-smooth.
     final pulse = armed
-        ? (0.5 + 0.5 * math.sin(DateTime.now().millisecondsSinceEpoch / 180))
+        ? (0.5 + 0.5 * math.sin(_elapsed.inMilliseconds / 180))
         : 0.0;
 
     return GestureDetector(

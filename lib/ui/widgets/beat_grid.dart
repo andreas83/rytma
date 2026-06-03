@@ -84,7 +84,7 @@ class _BeatCell extends StatelessWidget {
         height: 78,
         decoration: BoxDecoration(
           color: lit ? _color : _color.withValues(alpha: 0.22),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(kRadius),
           border: Border.all(
             color: isActive ? _color : Colors.transparent,
             width: 2,
