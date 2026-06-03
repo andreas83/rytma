@@ -17,8 +17,9 @@ basic click, it offers:
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — a multi-channel loop station: record into any of several
-  channels that loop together, each with volume / mute / play-stop, plus global
-  play-all and clear.
+  channels that loop together (mixed by the shared audio engine, so they play
+  simultaneously), each with volume / mute / play-stop / one-shot and per-loop
+  **trim**, plus optional length-sync to the metronome's bar grid.
 - **Tuner (Stimmgerät)** — chromatic pitch detection (note + cents) from the mic,
   using the YIN algorithm (`engine/pitch.dart`).
 - **Spectrogram** — live FFT heatmap of the mic input, optionally overlaying the
@@ -34,9 +35,10 @@ basic click, it offers:
   low-latency click playback (loads PCM straight from memory, overlapping
   voices). **Click samples are synthesized at runtime** (see `ClickSynth`) —
   there are no binary audio assets in the repo.
-- Recording/looping: [`record`](https://pub.dev/packages/record) (mic capture)
-  + [`audioplayers`](https://pub.dev/packages/audioplayers) (looping playback),
-  with [`path_provider`](https://pub.dev/packages/path_provider) for temp files.
+- Recording/looping: [`record`](https://pub.dev/packages/record) streams mic
+  PCM into memory; recorded loops are wrapped as WAV and played back through the
+  same `flutter_soloud` engine as the clicks, so every channel mixes and plays
+  at once (and trim / length-sync work at the sample level).
 - Mic analysis (tuner + spectrogram): [`record`](https://pub.dev/packages/record)
   `startStream` for live PCM + [`fftea`](https://pub.dev/packages/fftea) for the
   FFT. Pitch detection is hand-rolled autocorrelation (`engine/pitch.dart`).
@@ -64,12 +66,13 @@ lib/
     factory_presets.dart     Built-in starter presets.
   engine/                    Framework-agnostic timing/DSP core (pure Dart).
     tick_event.dart          ClickType enum + TickEvent.
+    wav.dart                 Shared 16-bit PCM WAV encoder (clicks + loops).
     click_synth.dart         Generates 16-bit mono WAV click samples in memory.
     metronome_engine.dart    Stopwatch + look-ahead scheduler.
-    pitch.dart               Frequency→note math + autocorrelation detector.
+    pitch.dart               Frequency→note math + YIN pitch detector.
   services/                  Platform/plugin wrappers.
     audio_clicks.dart        flutter_soloud wrapper; loads synthesized clicks.
-    loop_recorder.dart       record + audioplayers looper (ChangeNotifier).
+    loop_recorder.dart       Multi-channel looper: record (PCM) + soloud playback.
     audio_analyzer.dart      Mic stream → FFT spectrogram + pitch (ChangeNotifier).
     preset_store.dart        shared_preferences persistence.
   state/
@@ -126,8 +129,11 @@ Two voices: `TickEvent.voice == 0` is the primary metronome, `voice == 1` is the
 polyrhythm. The polyrhythm is `polyPulses` clicks spread evenly across the whole
 bar, producing a `timeSignature.beats : polyPulses` ratio.
 
-The **looper** (`LoopRecorder`) is an independent `ChangeNotifier` provider; it
-runs alongside the metronome and is unrelated to the engine.
+The **looper** (`LoopRecorder`) is an independent `ChangeNotifier` provider. It
+records mic PCM into memory and plays each channel as its own voice in the
+shared `SoLoud` engine, so channels mix and play simultaneously. The Looper
+screen feeds it the current bar length (samples) so loops can be quantized to
+the metronome's grid (the master clock); trim slices the recorded buffer.
 
 The **analyzer** (`AudioAnalyzer`, also an independent provider) streams live
 PCM from the mic (`record.startStream`), runs an FFT (`fftea`) for the

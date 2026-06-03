@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'wav.dart';
+
 /// Generates short percussive click samples as in-memory 16-bit mono WAV data.
 ///
 /// Synthesizing the clicks at runtime keeps the repo free of binary audio
@@ -27,36 +29,6 @@ class ClickSynth {
       final value = (wave * env * volume * 32767).clamp(-32768.0, 32767.0);
       samples[i] = value.toInt();
     }
-    return _wrapWav(samples);
-  }
-
-  static Uint8List _wrapWav(Int16List samples) {
-    final dataLength = samples.length * 2;
-    final header = ByteData(44);
-
-    void writeAscii(int offset, String s) {
-      for (var i = 0; i < s.length; i++) {
-        header.setUint8(offset + i, s.codeUnitAt(i));
-      }
-    }
-
-    writeAscii(0, 'RIFF');
-    header.setUint32(4, 36 + dataLength, Endian.little);
-    writeAscii(8, 'WAVE');
-    writeAscii(12, 'fmt ');
-    header.setUint32(16, 16, Endian.little); // PCM subchunk size
-    header.setUint16(20, 1, Endian.little); // audio format = PCM
-    header.setUint16(22, 1, Endian.little); // channels = mono
-    header.setUint32(24, sampleRate, Endian.little);
-    header.setUint32(28, sampleRate * 2, Endian.little); // byte rate
-    header.setUint16(32, 2, Endian.little); // block align
-    header.setUint16(34, 16, Endian.little); // bits per sample
-    writeAscii(36, 'data');
-    header.setUint32(40, dataLength, Endian.little);
-
-    final out = BytesBuilder();
-    out.add(header.buffer.asUint8List());
-    out.add(samples.buffer.asUint8List());
-    return out.toBytes();
+    return Wav.encode(samples, sampleRate: sampleRate);
   }
 }

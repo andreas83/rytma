@@ -17,9 +17,9 @@ and Web — built for musicians who need more than a plain click.
     target (great for speed-building).
   - *Gap trainer* — play a few bars, then mute a few, to test your internal
     clock.
-- **Looper** — a multi-channel loop station: record into any of several channels
-  that loop together, each with its own volume, mute, and play/stop, plus global
-  play-all and clear.
+- **Looper** — a multi-channel loop station: record into several channels that
+  loop and play **together**, each with its own volume, mute, play/stop,
+  one-shot, and **trim**; loops can be length-synced to the metronome's bars.
 - **Tuner (Stimmgerät)** — chromatic instrument tuner with a cents needle and
   frequency readout (A4 = 440 Hz).
 - **Spectrogram** — live scrolling FFT view of the incoming audio, with an
