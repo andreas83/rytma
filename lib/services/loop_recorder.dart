@@ -92,6 +92,10 @@ class LoopRecorder extends ChangeNotifier {
 
   int? get recordingIndex => _recordingIndex;
   bool get isRecording => _recordingIndex != null;
+
+  /// Mono samples captured so far in the in-progress recording (0 when not
+  /// recording). Lets the UI draw a live loop-position ring as audio streams in.
+  int get recordedSamples => (_recBuf?.length ?? 0) ~/ 2;
   String? get error => _error;
   bool get isEmpty => channels.every((c) => c.state == ChannelState.empty);
   bool get anyPlaying => channels.any((c) => c.state == ChannelState.playing);

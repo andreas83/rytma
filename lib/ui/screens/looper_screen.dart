@@ -1,6 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
+import '../../engine/tick_event.dart';
 import '../../services/loop_recorder.dart';
 import '../../state/metronome_controller.dart';
 
@@ -44,6 +48,7 @@ class LooperScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
+          _BeatIndicator(controller: controller),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
             child: Row(
@@ -121,24 +126,11 @@ class _ChannelCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                GestureDetector(
-                  onTap: () => recorder.tapChannel(channel.index),
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: style.fill,
-                      boxShadow: [
-                        BoxShadow(
-                          color: style.fill.withValues(alpha: 0.4),
-                          blurRadius: 14,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: Icon(style.icon, size: 28, color: Colors.white),
-                  ),
+                _RecordButton(
+                  recorder: recorder,
+                  channel: channel,
+                  fill: style.fill,
+                  icon: style.icon,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -281,4 +273,199 @@ class _PadStyle {
   final Color dot;
   final IconData icon;
   final String label;
+}
+
+/// A row of dots that lights up the current metronome beat, so the looper shows
+/// where you are in the bar without watching the Metronome tab. Driven by the
+/// controller's [MetronomeController.pulse] so it repaints in isolation.
+class _BeatIndicator extends StatelessWidget {
+  const _BeatIndicator({required this.controller});
+
+  final MetronomeController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final beats = controller.state.timeSignature.beats;
+    return SizedBox(
+      height: 28,
+      child: ValueListenableBuilder<TickEvent?>(
+        valueListenable: controller.pulse,
+        builder: (context, tick, _) {
+          final active = (tick != null && tick.voice == 0) ? tick.beat : -1;
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(beats, (i) {
+              final on = i == active;
+              final color = on
+                  ? (i == 0 ? scheme.tertiary : scheme.primary)
+                  : scheme.onSurface.withValues(alpha: 0.18);
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 70),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: on ? 14 : 9,
+                height: on ? 14 : 9,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                  boxShadow: on
+                      ? [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.6),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : null,
+                ),
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The circular record/transport pad with a live progress ring. While the
+/// channel records, the ring sweeps once per bar (tracking the captured audio
+/// length); while armed, it pulses to signal it fires on the next bar.
+class _RecordButton extends StatefulWidget {
+  const _RecordButton({
+    required this.recorder,
+    required this.channel,
+    required this.fill,
+    required this.icon,
+  });
+
+  final LoopRecorder recorder;
+  final LoopChannel channel;
+  final Color fill;
+  final IconData icon;
+
+  @override
+  State<_RecordButton> createState() => _RecordButtonState();
+}
+
+class _RecordButtonState extends State<_RecordButton>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker = createTicker((_) => setState(() {}));
+
+  bool get _animating =>
+      widget.channel.state == ChannelState.recording || widget.channel.isArmed;
+
+  void _syncTicker() {
+    if (_animating && !_ticker.isActive) {
+      _ticker.start();
+    } else if (!_animating && _ticker.isActive) {
+      _ticker.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _syncTicker();
+
+    final recording = widget.channel.state == ChannelState.recording;
+    final armed = widget.channel.isArmed;
+    final bar = widget.recorder.barSamples;
+    final progress = recording && bar > 0
+        ? (widget.recorder.recordedSamples % bar) / bar
+        : 0.0;
+    // Armed pads breathe; the value cycles 0→1→0 a bit faster than once a second.
+    final pulse = armed
+        ? (0.5 + 0.5 * math.sin(DateTime.now().millisecondsSinceEpoch / 180))
+        : 0.0;
+
+    return GestureDetector(
+      onTap: () => widget.recorder.tapChannel(widget.channel.index),
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: CustomPaint(
+          painter: _RingPainter(
+            color: widget.fill,
+            progress: progress,
+            recording: recording,
+            pulse: pulse,
+          ),
+          child: Center(
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.fill,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.fill.withValues(alpha: 0.4),
+                    blurRadius: 14,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Icon(widget.icon, size: 26, color: Colors.white),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Paints the progress ring around a [_RecordButton]: a faint track plus a
+/// bright arc that sweeps with the recording position (or a pulsing full ring
+/// while armed).
+class _RingPainter extends CustomPainter {
+  _RingPainter({
+    required this.color,
+    required this.progress,
+    required this.recording,
+    required this.pulse,
+  });
+
+  final Color color;
+  final double progress;
+  final bool recording;
+  final double pulse;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!recording && pulse == 0.0) return;
+    final center = size.center(Offset.zero);
+    final radius = size.width / 2 - 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..color = color.withValues(alpha: 0.25);
+    canvas.drawCircle(center, radius, track);
+
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..color = Colors.white.withValues(alpha: recording ? 0.95 : 0.4 + 0.5 * pulse);
+
+    if (recording) {
+      canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, arc);
+    } else {
+      // Armed: a breathing full ring.
+      canvas.drawCircle(center, radius, arc);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress ||
+      old.recording != recording ||
+      old.pulse != pulse ||
+      old.color != color;
 }
