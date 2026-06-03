@@ -7,36 +7,65 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../engine/sequencer_engine.dart';
 import '../models/fx_settings.dart';
 import '../models/sequencer_pattern.dart';
+import '../models/sequencer_song.dart';
 import '../services/synth_audio.dart';
 
-/// View-model for the step sequencer. Owns the [SequencerPattern], the
-/// [SequencerEngine] clock, and the [SynthAudio] voices: on each step boundary
-/// it triggers the active drums/bass/chord, publishes the playhead through
-/// [currentStep], and persists edits.
+/// View-model for the step sequencer. Owns a [SequencerSong] (a bank of
+/// [SequencerPattern]s + an arrangement), the [SequencerEngine] clock, and the
+/// [SynthAudio] voices: on each step boundary it triggers the active pattern's
+/// drums/bass/chord/lead, publishes the playhead through [currentStep], and
+/// persists edits.
 ///
-/// Tempo follows the metronome's BPM by default ([setFollowedBpm]); the pattern
-/// may override it. The sequencer keeps its own transport, so it can loop a
-/// backing track independently of the metronome.
+/// The bank's key / scale / waveforms / swing / tempo are kept in sync across
+/// all patterns, so switching patterns during a song never re-renders voices
+/// (no audio glitch). Tempo follows the metronome's BPM unless overridden. The
+/// sequencer keeps its own transport.
 class SequencerController extends ChangeNotifier {
   SequencerController({SynthAudio? audio}) : _audio = audio ?? SynthAudio() {
     _engine = SequencerEngine(onStep: _onStep);
   }
 
-  static const _prefsKey = 'metro_power.sequencer_pattern';
+  static const _legacyKey = 'metro_power.sequencer_pattern';
+  static const _songKey = 'metro_power.sequencer_song';
   static const _fxKey = 'metro_power.sequencer_fx';
 
   final SynthAudio _audio;
   late final SequencerEngine _engine;
   final Random _rng = Random();
 
-  SequencerPattern _pattern = SequencerPattern.empty();
+  SequencerSong _song = SequencerSong.single(SequencerPattern.empty());
   FxSettings _fx = const FxSettings();
+  int _editIndex = 0;
+  bool _songMode = false;
   bool _isPlaying = false;
   bool _initialized = false;
   double _followedBpm = 120;
 
+  // Song-arrangement playback cursor.
+  int _arrIndex = 0;
+  int _repeatLeft = 1;
+  bool _loopStarted = false;
+
   /// The currently sounding step (−1 when stopped), for playhead highlighting.
   final ValueNotifier<int> currentStep = ValueNotifier(-1);
+
+  // --- active pattern (bank-backed) --------------------------------------
+
+  int get _activeIndex {
+    final i = (_songMode && _isPlaying)
+        ? _song.arrangement[_arrIndex].patternIndex
+        : _editIndex;
+    return i.clamp(0, _song.bank.length - 1);
+  }
+
+  SequencerPattern get _pattern => _song.bank[_activeIndex];
+  set _pattern(SequencerPattern p) {
+    final bank = List<SequencerPattern>.from(_song.bank);
+    bank[_activeIndex] = p;
+    _song = _song.copyWith(bank: bank);
+  }
+
+  // --- public state ------------------------------------------------------
 
   SequencerPattern get pattern => _pattern;
   FxSettings get fx => _fx;
@@ -45,19 +74,25 @@ class SequencerController extends ChangeNotifier {
   bool get followsMetronome => _pattern.bpmOverride == null;
   double get effectiveBpm => _pattern.bpmOverride ?? _followedBpm;
 
+  bool get songMode => _songMode;
+  int get patternCount => _song.bank.length;
+  int get editIndex => _editIndex;
+  List<ArrangementStep> get arrangement =>
+      List.unmodifiable(_song.arrangement);
+
+  /// Arrangement step currently playing (−1 when not playing a song).
+  int get playingArrangement => (_songMode && _isPlaying) ? _arrIndex : -1;
+
+  /// Bank pattern index currently sounding/edited (for chip highlighting).
+  int get activePatternIndex => _activeIndex;
+
   Future<void> init() async {
     await _audio.init();
-    final saved = await _load();
-    if (saved != null) _pattern = saved;
+    _song = await _loadSong() ?? SequencerSong.single(SequencerPattern.empty());
     _fx = await _loadFx() ?? const FxSettings();
     await _pushVoices();
     _audio.applyFx(_fx);
-    _engine.configure(
-      bpm: effectiveBpm,
-      steps: _pattern.steps,
-      stepsPerBeat: _pattern.stepsPerBeat,
-      swing: _pattern.swing,
-    );
+    _reconfigure();
     _initialized = true;
     notifyListeners();
   }
@@ -72,10 +107,21 @@ class SequencerController extends ChangeNotifier {
     }
   }
 
+  void _reconfigure() => _engine.configure(
+        bpm: effectiveBpm,
+        steps: _pattern.steps,
+        stepsPerBeat: _pattern.stepsPerBeat,
+        swing: _pattern.swing,
+      );
+
   /// Roll a step's probability dice (always true at 1.0).
   bool _hit(double prob) => prob >= 1.0 || _rng.nextDouble() < prob;
 
   void _onStep(int step) {
+    if (step == 0) {
+      if (_loopStarted && _songMode) _advanceSong();
+      _loopStarted = true;
+    }
     currentStep.value = step;
     final p = _pattern;
     for (final k in DrumKind.values) {
@@ -105,6 +151,21 @@ class SequencerController extends ChangeNotifier {
     }
   }
 
+  /// Advance the arrangement at a loop boundary. Voices are shared across the
+  /// bank, so this only re-times the engine for the new pattern length — no
+  /// re-render, so the switch is glitch-free.
+  void _advanceSong() {
+    final arr = _song.arrangement;
+    _repeatLeft -= 1;
+    if (_repeatLeft <= 0) {
+      _arrIndex = (_arrIndex + 1) % arr.length;
+      _repeatLeft = arr[_arrIndex].repeats;
+    }
+    final p = _pattern; // uses the new _arrIndex
+    _engine.configure(steps: p.steps, swing: p.swing, bpm: effectiveBpm);
+    notifyListeners();
+  }
+
   Future<void> _pushVoices() => _audio.setVoices(
         _pattern.root,
         _pattern.scale,
@@ -120,12 +181,12 @@ class SequencerController extends ChangeNotifier {
   void start() {
     if (_isPlaying) return;
     _isPlaying = true;
-    _engine.configure(
-      bpm: effectiveBpm,
-      steps: _pattern.steps,
-      stepsPerBeat: _pattern.stepsPerBeat,
-      swing: _pattern.swing,
-    );
+    _loopStarted = false;
+    if (_songMode) {
+      _arrIndex = 0;
+      _repeatLeft = _song.arrangement.first.repeats;
+    }
+    _reconfigure();
     _engine.start();
     notifyListeners();
   }
@@ -138,19 +199,23 @@ class SequencerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- edits -------------------------------------------------------------
+  // --- edits (target the active pattern) ---------------------------------
 
   void _apply(SequencerPattern next,
       {bool reconfigure = false, bool rekey = false}) {
     _pattern = next;
-    if (reconfigure) {
-      _engine.configure(
-        bpm: effectiveBpm,
-        steps: next.steps,
-        stepsPerBeat: next.stepsPerBeat,
-        swing: next.swing,
-      );
-    }
+    if (reconfigure) _reconfigure();
+    if (rekey) _pushVoices();
+    _save();
+    notifyListeners();
+  }
+
+  /// Map an edit across **every** bank pattern (for shared key/scale/wave/swing/
+  /// tempo), preserving the no-glitch invariant.
+  void _applyShared(SequencerPattern Function(SequencerPattern) f,
+      {bool reconfigure = false, bool rekey = false}) {
+    _song = _song.copyWith(bank: [for (final p in _song.bank) f(p)]);
+    if (reconfigure) _reconfigure();
     if (rekey) _pushVoices();
     _save();
     notifyListeners();
@@ -222,17 +287,33 @@ class SequencerController extends ChangeNotifier {
     );
   }
 
+  // Key / scale / waveform / swing / tempo are shared across the bank.
+
   void setRoot(int root) =>
-      _apply(_pattern.copyWith(root: root.clamp(0, 11)), rekey: true);
+      _applyShared((p) => p.copyWith(root: root.clamp(0, 11)), rekey: true);
 
   void setScale(SynthScale scale) =>
-      _apply(_pattern.copyWith(scale: scale), rekey: true);
+      _applyShared((p) => p.copyWith(scale: scale), rekey: true);
 
   /// Set an explicit tempo, or pass null to follow the metronome again.
-  void setBpmOverride(double? bpm) => _apply(
-        _pattern.copyWith(bpmOverride: bpm?.clamp(20, 400)),
+  void setBpmOverride(double? bpm) => _applyShared(
+        (p) => p.copyWith(bpmOverride: bpm?.clamp(20, 400)),
         reconfigure: true,
       );
+
+  void setBassWave(SynthWave wave) =>
+      _applyShared((p) => p.copyWith(bassWave: wave), rekey: true);
+  void setChordWave(SynthWave wave) =>
+      _applyShared((p) => p.copyWith(chordWave: wave), rekey: true);
+  void setLeadWave(SynthWave wave) =>
+      _applyShared((p) => p.copyWith(leadWave: wave), rekey: true);
+
+  void setSwing(double swing) => _applyShared(
+        (p) => p.copyWith(swing: swing.clamp(0.0, 0.5)),
+        reconfigure: true,
+      );
+
+  // Mix is per-pattern.
 
   void setDrumVolume(DrumKind kind, double volume) {
     final vol = Map<DrumKind, double>.from(_pattern.drumVol);
@@ -256,15 +337,6 @@ class SequencerController extends ChangeNotifier {
       _apply(_pattern.copyWith(leadVol: v.clamp(0.0, 1.0)));
   void toggleLeadMute() => _apply(_pattern.copyWith(leadMute: !_pattern.leadMute));
 
-  // --- waveforms (re-render the affected voices) -------------------------
-
-  void setBassWave(SynthWave wave) =>
-      _apply(_pattern.copyWith(bassWave: wave), rekey: true);
-  void setChordWave(SynthWave wave) =>
-      _apply(_pattern.copyWith(chordWave: wave), rekey: true);
-  void setLeadWave(SynthWave wave) =>
-      _apply(_pattern.copyWith(leadWave: wave), rekey: true);
-
   void clear() => _apply(
         SequencerPattern.empty(steps: _pattern.steps).copyWith(
           root: _pattern.root,
@@ -278,10 +350,7 @@ class SequencerController extends ChangeNotifier {
         reconfigure: true,
       );
 
-  // --- groove (swing, per-step velocity + probability) -------------------
-
-  void setSwing(double swing) =>
-      _apply(_pattern.copyWith(swing: swing.clamp(0.0, 0.5)), reconfigure: true);
+  // --- groove (per-step velocity + probability) --------------------------
 
   void setDrumVelocity(DrumKind kind, int step, StepVelocity v) {
     final list = List<StepVelocity>.from(_pattern.drumVelocity[kind]!);
@@ -325,6 +394,108 @@ class SequencerController extends ChangeNotifier {
     return list;
   }
 
+  // --- song mode (bank + arrangement) ------------------------------------
+
+  void setSongMode(bool on) {
+    if (_songMode == on) return;
+    _songMode = on;
+    if (_isPlaying) {
+      if (on) {
+        _arrIndex = 0;
+        _repeatLeft = _song.arrangement.first.repeats;
+        _loopStarted = false;
+      }
+      _reconfigure();
+    }
+    _save();
+    notifyListeners();
+  }
+
+  void selectPattern(int index) {
+    if (index < 0 || index >= _song.bank.length || index == _editIndex) return;
+    _editIndex = index;
+    if (!(_songMode && _isPlaying)) _reconfigure();
+    notifyListeners();
+  }
+
+  void addPattern() {
+    if (_song.bank.length >= SequencerSong.maxPatterns) return;
+    final base = _song.bank[_editIndex];
+    final fresh = SequencerPattern.empty(steps: base.steps).copyWith(
+      root: base.root,
+      scale: base.scale,
+      bassWave: base.bassWave,
+      chordWave: base.chordWave,
+      leadWave: base.leadWave,
+      swing: base.swing,
+      bpmOverride: base.bpmOverride,
+    );
+    _song = _song.copyWith(bank: [..._song.bank, fresh]);
+    _editIndex = _song.bank.length - 1;
+    if (!(_songMode && _isPlaying)) _reconfigure();
+    _save();
+    notifyListeners();
+  }
+
+  void duplicatePattern() {
+    if (_song.bank.length >= SequencerSong.maxPatterns) return;
+    // Deep copy via JSON so the new slot shares no mutable lists.
+    final copy =
+        SequencerPattern.fromJson(_song.bank[_editIndex].toJson());
+    _song = _song.copyWith(bank: [..._song.bank, copy]);
+    _editIndex = _song.bank.length - 1;
+    _save();
+    notifyListeners();
+  }
+
+  void deletePattern(int index) {
+    if (_song.bank.length <= 1 || index < 0 || index >= _song.bank.length) {
+      return;
+    }
+    final bank = List<SequencerPattern>.from(_song.bank)..removeAt(index);
+    // Drop arrangement steps that referenced it; renumber higher indices.
+    var arr = _song.arrangement
+        .where((a) => a.patternIndex != index)
+        .map((a) => a.patternIndex > index
+            ? a.copyWith(patternIndex: a.patternIndex - 1)
+            : a)
+        .toList();
+    if (arr.isEmpty) arr = [const ArrangementStep(patternIndex: 0)];
+    _song = SequencerSong(bank: bank, arrangement: arr);
+    _editIndex = _editIndex.clamp(0, bank.length - 1);
+    if (_arrIndex >= arr.length) _arrIndex = 0;
+    if (!(_songMode && _isPlaying)) _reconfigure();
+    _save();
+    notifyListeners();
+  }
+
+  void addArrangementStep(int patternIndex) {
+    final arr = [
+      ..._song.arrangement,
+      ArrangementStep(patternIndex: patternIndex.clamp(0, _song.bank.length - 1)),
+    ];
+    _song = _song.copyWith(arrangement: arr);
+    _save();
+    notifyListeners();
+  }
+
+  void removeArrangementStep(int index) {
+    if (_song.arrangement.length <= 1) return;
+    final arr = List<ArrangementStep>.from(_song.arrangement)..removeAt(index);
+    _song = _song.copyWith(arrangement: arr);
+    if (_arrIndex >= arr.length) _arrIndex = 0;
+    _save();
+    notifyListeners();
+  }
+
+  void setArrangementRepeats(int index, int repeats) {
+    final arr = List<ArrangementStep>.from(_song.arrangement);
+    arr[index] = arr[index].copyWith(repeats: repeats.clamp(1, 16));
+    _song = _song.copyWith(arrangement: arr);
+    _save();
+    notifyListeners();
+  }
+
   // --- FX rack -----------------------------------------------------------
 
   void _applyFx(FxSettings next) {
@@ -350,7 +521,7 @@ class SequencerController extends ChangeNotifier {
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, jsonEncode(_pattern.toJson()));
+    await prefs.setString(_songKey, jsonEncode(_song.toJson()));
   }
 
   Future<void> _saveFx() async {
@@ -369,15 +540,28 @@ class SequencerController extends ChangeNotifier {
     }
   }
 
-  Future<SequencerPattern?> _load() async {
+  Future<SequencerSong?> _loadSong() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefsKey);
-    if (raw == null) return null;
-    try {
-      return SequencerPattern.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-    } catch (_) {
-      return null;
+    final raw = prefs.getString(_songKey);
+    if (raw != null) {
+      try {
+        return SequencerSong.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      } catch (_) {
+        // fall through to legacy migration
+      }
     }
+    // Migrate a legacy single-pattern save into a one-pattern song.
+    final legacy = prefs.getString(_legacyKey);
+    if (legacy != null) {
+      try {
+        return SequencerSong.single(
+          SequencerPattern.fromJson(jsonDecode(legacy) as Map<String, dynamic>),
+        );
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   @override

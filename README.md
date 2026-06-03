@@ -18,10 +18,10 @@ and Web — built for musicians who need more than a plain click.
   (sine / triangle / saw / square). Pick a pattern length (8 / 16 / 32 steps),
   mute and mix each track, add **swing**, and long-press any step to set its
   **velocity** (ghost / normal / accent) and **probability**. Shape the sound
-  with an **FX rack** (reverb / delay / resonant filter / compressor), and
-  **export your beat to a WAV** to share. Loops on its own transport — the tempo
-  follows the metronome unless you set your own. Every sound is synthesized at
-  runtime.
+  with an **FX rack** (reverb / delay / resonant filter / compressor), chain
+  patterns into a **song** arrangement, and **export your track to a WAV** to
+  share. Loops on its own transport — the tempo follows the metronome unless you
+  set your own. Every sound is synthesized at runtime.
 - **Training**
   - *Tempo ramp* — automatically change BPM by a step every few bars up to a
     target (great for speed-building).

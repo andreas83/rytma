@@ -57,6 +57,7 @@ class SequencerScreen extends StatelessWidget {
           : Column(
               children: [
                 _Controls(seq: seq),
+                _SongBar(seq: seq),
                 const Divider(height: 1),
                 Expanded(child: _Grid(seq: seq)),
               ],
@@ -166,6 +167,115 @@ const _laneLabels = {
   _Lane.chord: 'Chord',
   _Lane.lead: 'Lead',
 };
+
+String _patternLetter(int i) => String.fromCharCode(65 + i);
+
+/// Pattern bank (A–H) + a Song toggle and arrangement strip.
+class _SongBar extends StatelessWidget {
+  const _SongBar({required this.seq});
+
+  final SequencerController seq;
+
+  @override
+  Widget build(BuildContext context) {
+    final canAdd = seq.patternCount < 8;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 8, 4),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < seq.patternCount; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChoiceChip(
+                            label: Text(_patternLetter(i)),
+                            visualDensity: VisualDensity.compact,
+                            selected: i == seq.editIndex,
+                            onSelected: (_) => seq.selectPattern(i),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Add pattern',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.add, size: 20),
+                onPressed: canAdd ? seq.addPattern : null,
+              ),
+              IconButton(
+                tooltip: 'Duplicate pattern',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.copy_all_outlined, size: 18),
+                onPressed: canAdd ? seq.duplicatePattern : null,
+              ),
+              IconButton(
+                tooltip: 'Delete pattern',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.delete_outline, size: 18),
+                onPressed: seq.patternCount > 1
+                    ? () => seq.deletePattern(seq.editIndex)
+                    : null,
+              ),
+              const SizedBox(width: 4),
+              FilterChip(
+                label: const Text('Song'),
+                visualDensity: VisualDensity.compact,
+                selected: seq.songMode,
+                onSelected: seq.setSongMode,
+              ),
+            ],
+          ),
+          if (seq.songMode)
+            Row(
+              children: [
+                const Text('Arr', style: TextStyle(fontSize: 12)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < seq.arrangement.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: InputChip(
+                              label: Text(
+                                  '${_patternLetter(seq.arrangement[i].patternIndex)}×${seq.arrangement[i].repeats}'),
+                              visualDensity: VisualDensity.compact,
+                              selected: i == seq.playingArrangement,
+                              // Tap bumps the repeat count (wraps 1→8→1).
+                              onPressed: () => seq.setArrangementRepeats(
+                                  i, seq.arrangement[i].repeats % 8 + 1),
+                              onDeleted: seq.arrangement.length > 1
+                                  ? () => seq.removeArrangementStep(i)
+                                  : null,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Add current pattern to song',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.playlist_add, size: 20),
+                  onPressed: () => seq.addArrangementStep(seq.editIndex),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Transport, tempo, length and key controls (the non-scrolling header).
 class _Controls extends StatelessWidget {

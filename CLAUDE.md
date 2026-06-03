@@ -22,11 +22,14 @@ basic click, it offers:
   steps), per-track mute + volume mixer, **swing**, per-step **velocity**
   (ghost / normal / accent) + **probability** (long-press a cell), and an **FX
   rack** (reverb / delay / resonant low-pass filter / compressor) applied to the
-  synth voices via a dedicated `flutter_soloud` Bus. Has its **own transport**
-  that loops independently — its tempo *follows the metronome's BPM* unless
-  overridden. The pattern can be **exported to a shareable WAV** (offline
-  pure-Dart mixdown via `engine/track_export.dart`). All sounds are synthesized
-  at runtime (`engine/synth.dart`).
+  synth voices via a dedicated `flutter_soloud` Bus. **Song mode** chains a bank
+  of patterns (A–H) into an arrangement (per-step repeats), switching patterns
+  on the bar; the bank shares key/scale/waveforms/swing/tempo so switches don't
+  re-render voices. Has its **own transport** that loops independently — its
+  tempo *follows the metronome's BPM* unless overridden. The pattern can be
+  **exported to a shareable WAV** (offline pure-Dart mixdown via
+  `engine/track_export.dart`). All sounds are synthesized at runtime
+  (`engine/synth.dart`).
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — a multi-channel loop station: record into any of several
@@ -82,6 +85,7 @@ lib/
     accent.dart              enum: mute / weak / normal / strong.
     poly_timbre.dart         enum: selectable polyrhythm-voice sound.
     sequencer_pattern.dart   Step-sequencer pattern (drums + bass/chord lanes).
+    sequencer_song.dart      Pattern bank + arrangement for song mode.
     fx_settings.dart         Sequencer FX-rack settings (reverb/delay/filter).
     trainer_config.dart      Tempo-ramp + gap-trainer settings.
     metronome_state.dart     The full serializable app state.
