@@ -19,10 +19,12 @@ basic click, it offers:
   lanes that play in a chosen **key + scale** (the lanes store row indices;
   `Music` maps them to pitches). Each pitched voice has a selectable **waveform**
   (sine / triangle / saw / square). Adjustable pattern length (8 / 16 / 32
-  steps), per-track mute + volume mixer, **swing**, and per-step **velocity**
-  (ghost / normal / accent) + **probability** (long-press a cell). Has its **own
-  transport** that loops independently — its tempo *follows the metronome's BPM*
-  unless overridden. All sounds are synthesized at runtime (`engine/synth.dart`).
+  steps), per-track mute + volume mixer, **swing**, per-step **velocity**
+  (ghost / normal / accent) + **probability** (long-press a cell), and an **FX
+  rack** (reverb / delay / resonant low-pass filter / compressor) applied to the
+  synth voices via a dedicated `flutter_soloud` Bus. Has its **own transport**
+  that loops independently — its tempo *follows the metronome's BPM* unless
+  overridden. All sounds are synthesized at runtime (`engine/synth.dart`).
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — a multi-channel loop station: record into any of several
@@ -78,6 +80,7 @@ lib/
     accent.dart              enum: mute / weak / normal / strong.
     poly_timbre.dart         enum: selectable polyrhythm-voice sound.
     sequencer_pattern.dart   Step-sequencer pattern (drums + bass/chord lanes).
+    fx_settings.dart         Sequencer FX-rack settings (reverb/delay/filter).
     trainer_config.dart      Tempo-ramp + gap-trainer settings.
     metronome_state.dart     The full serializable app state.
     preset.dart              A named saved MetronomeState.
@@ -93,7 +96,8 @@ lib/
     time_stretch.dart        WSOLA time-stretch (loop "warp", pitch-preserving).
   services/                  Platform/plugin wrappers.
     audio_clicks.dart        flutter_soloud wrapper; loads synthesized clicks.
-    synth_audio.dart         flutter_soloud wrapper; renders/caches synth voices.
+    synth_audio.dart         flutter_soloud wrapper; renders/caches synth voices,
+                             routes them through a Bus + applies the FX rack.
     loop_recorder.dart       Multi-channel looper: record (PCM) + soloud playback.
     audio_analyzer.dart      Mic stream → FFT spectrogram + pitch (ChangeNotifier).
     preset_store.dart        shared_preferences persistence.

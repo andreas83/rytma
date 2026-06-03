@@ -27,6 +27,11 @@ class SequencerScreen extends StatelessWidget {
         title: const Text('Sequencer'),
         actions: [
           IconButton(
+            tooltip: 'FX rack',
+            icon: const Icon(Icons.graphic_eq),
+            onPressed: seq.isInitialized ? () => _showFx(context, seq) : null,
+          ),
+          IconButton(
             tooltip: 'Mixer',
             icon: const Icon(Icons.tune),
             onPressed: seq.isInitialized
@@ -79,6 +84,18 @@ class SequencerScreen extends StatelessWidget {
       builder: (_) => ChangeNotifierProvider<SequencerController>.value(
         value: seq,
         child: const _Mixer(),
+      ),
+    );
+  }
+
+  static Future<void> _showFx(BuildContext context, SequencerController seq) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => ChangeNotifierProvider<SequencerController>.value(
+        value: seq,
+        child: const _FxRack(),
       ),
     );
   }
@@ -788,4 +805,72 @@ class _Mixer extends StatelessWidget {
         DrumKind.hat => 'Hat',
         DrumKind.clap => 'Clap',
       };
+}
+
+/// Bottom-sheet FX rack: real-time effects applied to the sequencer's synth
+/// bus (reverb / delay / resonant low-pass filter / glue compressor).
+class _FxRack extends StatelessWidget {
+  const _FxRack();
+
+  @override
+  Widget build(BuildContext context) {
+    final seq = context.watch<SequencerController>();
+    final fx = seq.fx;
+
+    Widget knob(String name, double value, ValueChanged<double> onChanged) =>
+        Row(
+          children: [
+            SizedBox(width: 84, child: Text(name)),
+            Expanded(child: Slider(value: value, onChanged: onChanged)),
+          ],
+        );
+
+    Widget section(String title, bool on, VoidCallback onToggle,
+            List<Widget> body) =>
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text(title,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              value: on,
+              onChanged: (_) => onToggle(),
+            ),
+            if (on) ...body,
+            const Divider(),
+          ],
+        );
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+          16, 0, 16, 24 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('FX rack',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          const Text('Effects on the sequencer voices only.',
+              style: TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: MetroSpacing.sm),
+          section('Reverb', fx.reverbOn, seq.toggleReverb, [
+            knob('Mix', fx.reverbWet, seq.setReverbWet),
+            knob('Room', fx.reverbRoom, seq.setReverbRoom),
+          ]),
+          section('Delay', fx.echoOn, seq.toggleEcho, [
+            knob('Mix', fx.echoWet, seq.setEchoWet),
+            knob('Time', fx.echoDelay, seq.setEchoDelay),
+            knob('Feedback', fx.echoDecay, seq.setEchoDecay),
+          ]),
+          section('Low-pass filter', fx.lpfOn, seq.toggleLpf, [
+            knob('Cutoff', fx.lpfCutoff, seq.setLpfCutoff),
+            knob('Resonance', fx.lpfResonance, seq.setLpfResonance),
+          ]),
+          section('Compressor', fx.compOn, seq.toggleComp, const []),
+        ],
+      ),
+    );
+  }
 }

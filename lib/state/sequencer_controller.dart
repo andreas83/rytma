@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../engine/sequencer_engine.dart';
+import '../models/fx_settings.dart';
 import '../models/sequencer_pattern.dart';
 import '../services/synth_audio.dart';
 
@@ -22,12 +23,14 @@ class SequencerController extends ChangeNotifier {
   }
 
   static const _prefsKey = 'metro_power.sequencer_pattern';
+  static const _fxKey = 'metro_power.sequencer_fx';
 
   final SynthAudio _audio;
   late final SequencerEngine _engine;
   final Random _rng = Random();
 
   SequencerPattern _pattern = SequencerPattern.empty();
+  FxSettings _fx = const FxSettings();
   bool _isPlaying = false;
   bool _initialized = false;
   double _followedBpm = 120;
@@ -36,6 +39,7 @@ class SequencerController extends ChangeNotifier {
   final ValueNotifier<int> currentStep = ValueNotifier(-1);
 
   SequencerPattern get pattern => _pattern;
+  FxSettings get fx => _fx;
   bool get isPlaying => _isPlaying;
   bool get isInitialized => _initialized;
   bool get followsMetronome => _pattern.bpmOverride == null;
@@ -45,7 +49,9 @@ class SequencerController extends ChangeNotifier {
     await _audio.init();
     final saved = await _load();
     if (saved != null) _pattern = saved;
+    _fx = await _loadFx() ?? const FxSettings();
     await _pushVoices();
+    _audio.applyFx(_fx);
     _engine.configure(
       bpm: effectiveBpm,
       steps: _pattern.steps,
@@ -319,11 +325,48 @@ class SequencerController extends ChangeNotifier {
     return list;
   }
 
+  // --- FX rack -----------------------------------------------------------
+
+  void _applyFx(FxSettings next) {
+    _fx = next;
+    _audio.applyFx(_fx);
+    _saveFx();
+    notifyListeners();
+  }
+
+  void toggleReverb() => _applyFx(_fx.copyWith(reverbOn: !_fx.reverbOn));
+  void setReverbWet(double v) => _applyFx(_fx.copyWith(reverbWet: v));
+  void setReverbRoom(double v) => _applyFx(_fx.copyWith(reverbRoom: v));
+  void toggleEcho() => _applyFx(_fx.copyWith(echoOn: !_fx.echoOn));
+  void setEchoWet(double v) => _applyFx(_fx.copyWith(echoWet: v));
+  void setEchoDelay(double v) => _applyFx(_fx.copyWith(echoDelay: v));
+  void setEchoDecay(double v) => _applyFx(_fx.copyWith(echoDecay: v));
+  void toggleLpf() => _applyFx(_fx.copyWith(lpfOn: !_fx.lpfOn));
+  void setLpfCutoff(double v) => _applyFx(_fx.copyWith(lpfCutoff: v));
+  void setLpfResonance(double v) => _applyFx(_fx.copyWith(lpfResonance: v));
+  void toggleComp() => _applyFx(_fx.copyWith(compOn: !_fx.compOn));
+
   // --- persistence -------------------------------------------------------
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, jsonEncode(_pattern.toJson()));
+  }
+
+  Future<void> _saveFx() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_fxKey, jsonEncode(_fx.toJson()));
+  }
+
+  Future<FxSettings?> _loadFx() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_fxKey);
+    if (raw == null) return null;
+    try {
+      return FxSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<SequencerPattern?> _load() async {

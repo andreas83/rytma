@@ -1,6 +1,9 @@
+import 'dart:math';
+
 import 'package:flutter_soloud/flutter_soloud.dart';
 
 import '../engine/synth.dart';
+import '../models/fx_settings.dart';
 import '../models/sequencer_pattern.dart';
 
 /// Low-latency playback for the sequencer's synthesized instruments.
@@ -8,10 +11,16 @@ import '../models/sequencer_pattern.dart';
 /// Like [AudioClicks], samples are synthesized once (via [Synth]) and cached as
 /// SoLoud [AudioSource]s, then triggered as overlapping voices. The four drum
 /// sources are fixed; the pitched bass/chord/lead sources are re-rendered
-/// whenever the key, scale, or a voice's waveform changes. The shared [SoLoud]
-/// engine mixes these alongside the metronome clicks and looper voices.
+/// whenever the key, scale, or a voice's waveform changes.
+///
+/// All synth voices are routed through one dedicated mixing [Bus] so the FX
+/// rack ([applyFx]) affects the sequencer only — the metronome click and looper
+/// keep playing on the engine directly. Bus filters are also web-safe (unlike
+/// per-source filters). If the bus can't be created, playback falls back to the
+/// engine and FX are silently disabled.
 class SynthAudio {
   final SoLoud _soloud = SoLoud.instance;
+  Bus? _bus;
   final Map<DrumKind, AudioSource> _drums = {};
   final List<AudioSource?> _bass = List.filled(Music.bassRows, null);
   final List<AudioSource?> _chords = List.filled(Music.chordRows, null);
@@ -32,12 +41,27 @@ class SynthAudio {
     if (!_soloud.isInitialized) {
       await _soloud.init(sampleRate: Synth.sampleRate);
     }
+    try {
+      _bus = _soloud.createMixingBus()..playOnEngine();
+    } catch (_) {
+      _bus = null; // fall back to direct playback; FX disabled
+    }
     _drums[DrumKind.kick] = await _soloud.loadMem('synth_kick', Synth.kick());
     _drums[DrumKind.snare] = await _soloud.loadMem('synth_snare', Synth.snare());
     _drums[DrumKind.hat] = await _soloud.loadMem('synth_hat', Synth.hat());
     _drums[DrumKind.clap] = await _soloud.loadMem('synth_clap', Synth.clap());
     await _renderPitched();
     _ready = true;
+  }
+
+  void _play(AudioSource source, double volume) {
+    final v = volume.clamp(0.0, 1.0);
+    final bus = _bus;
+    if (bus != null) {
+      bus.play(source, volume: v);
+    } else {
+      _soloud.play(source, volume: v);
+    }
   }
 
   /// Re-render the pitched voices for a new key/scale/waveforms (no-op if
@@ -85,8 +109,7 @@ class SynthAudio {
 
   void playDrum(DrumKind kind, double volume) {
     final source = _drums[kind];
-    if (source == null) return;
-    _soloud.play(source, volume: volume.clamp(0.0, 1.0));
+    if (source != null) _play(source, volume);
   }
 
   void playBass(int row, double volume) => _playFrom(_bass, row, volume);
@@ -96,7 +119,45 @@ class SynthAudio {
   void _playFrom(List<AudioSource?> bank, int index, double volume) {
     if (index < 0 || index >= bank.length) return;
     final source = bank[index];
-    if (source != null) _soloud.play(source, volume: volume.clamp(0.0, 1.0));
+    if (source != null) _play(source, volume);
+  }
+
+  /// Activate/deactivate and parameterize the bus filters from [fx]. Each
+  /// effect is guarded so one unsupported filter never breaks the others.
+  void applyFx(FxSettings fx) {
+    final bus = _bus;
+    if (bus == null) return;
+    final f = bus.filters;
+
+    void toggle(dynamic filter, bool on, void Function() params) {
+      try {
+        if (on) {
+          if (!(filter.isActive as bool)) filter.activate();
+          params();
+        } else if (filter.isActive as bool) {
+          filter.deactivate();
+        }
+      } catch (_) {
+        // Best-effort: a platform may not support this filter.
+      }
+    }
+
+    toggle(f.freeverbFilter, fx.reverbOn, () {
+      f.freeverbFilter.wet().value = fx.reverbWet;
+      f.freeverbFilter.roomSize().value = fx.reverbRoom;
+    });
+    toggle(f.echoFilter, fx.echoOn, () {
+      f.echoFilter.wet().value = fx.echoWet;
+      f.echoFilter.delay().value = (0.05 + fx.echoDelay * 0.7);
+      f.echoFilter.decay().value = fx.echoDecay;
+    });
+    toggle(f.biquadFilter, fx.lpfOn, () {
+      f.biquadFilter.type().value = 0; // 0 = low-pass
+      // Log-map 0..1 to ~200..16000 Hz.
+      f.biquadFilter.frequency().value = 200 * pow(80, fx.lpfCutoff).toDouble();
+      f.biquadFilter.resonance().value = 0.1 + fx.lpfResonance * 15.9;
+    });
+    toggle(f.compressorFilter, fx.compOn, () {});
   }
 
   void dispose() {
