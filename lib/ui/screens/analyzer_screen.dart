@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/audio_analyzer.dart';
+import '../../state/app_settings.dart';
 import '../../state/metronome_controller.dart';
 import '../theme.dart';
 import '../widgets/spectrogram_view.dart';
@@ -52,6 +53,10 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
   @override
   Widget build(BuildContext context) {
     final analyzer = context.watch<AudioAnalyzer>();
+    final settings = context.watch<AppSettings>();
+    // Feed the analyzer the current preferences (cheap, idempotent setters).
+    analyzer.setReferenceA4(settings.referenceA4);
+    analyzer.setSensitivity(settings.spectrogramSensitivity);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Analyzer')),
@@ -110,9 +115,10 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
             const SizedBox(height: MetroSpacing.lg),
             Expanded(
               child: _mode == _Mode.tuner
-                  ? _TunerBody(analyzer: analyzer)
+                  ? _TunerBody(analyzer: analyzer, settings: settings)
                   : _SpectrogramBody(
                       analyzer: analyzer,
+                      settings: settings,
                       showBars: _showBars,
                       onShowBars: (v) => setState(() => _showBars = v),
                     ),
@@ -162,9 +168,10 @@ class _ListeningBar extends StatelessWidget {
 }
 
 class _TunerBody extends StatelessWidget {
-  const _TunerBody({required this.analyzer});
+  const _TunerBody({required this.analyzer, required this.settings});
 
   final AudioAnalyzer analyzer;
+  final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
@@ -173,9 +180,11 @@ class _TunerBody extends StatelessWidget {
         child: Column(
           children: [
             TunerGauge(reading: analyzer.reading),
-            const SizedBox(height: 16),
+            const SizedBox(height: MetroSpacing.lg),
+            _ReferencePitch(settings: settings),
+            const SizedBox(height: MetroSpacing.md),
             Text(
-              'Play a single note to tune (A4 = 440 Hz).',
+              'Play a single note to tune. Green band = in tune.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -186,14 +195,62 @@ class _TunerBody extends StatelessWidget {
   }
 }
 
+/// Compact stepper for the concert-pitch reference (A4), e.g. 432 / 440 / 442.
+class _ReferencePitch extends StatelessWidget {
+  const _ReferencePitch({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final a4 = settings.referenceA4;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Reference', style: TextStyle(color: scheme.onSurfaceVariant)),
+        const SizedBox(width: MetroSpacing.md),
+        IconButton.filledTonal(
+          tooltip: '−1 Hz',
+          visualDensity: VisualDensity.compact,
+          onPressed:
+              a4 > AppSettings.minA4 ? () => settings.nudgeReferenceA4(-1) : null,
+          icon: const Icon(Icons.remove),
+        ),
+        SizedBox(
+          width: 116,
+          child: Text(
+            'A4 = ${a4.round()} Hz',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        IconButton.filledTonal(
+          tooltip: '+1 Hz',
+          visualDensity: VisualDensity.compact,
+          onPressed:
+              a4 < AppSettings.maxA4 ? () => settings.nudgeReferenceA4(1) : null,
+          icon: const Icon(Icons.add),
+        ),
+      ],
+    );
+  }
+}
+
 class _SpectrogramBody extends StatelessWidget {
   const _SpectrogramBody({
     required this.analyzer,
+    required this.settings,
     required this.showBars,
     required this.onShowBars,
   });
 
   final AudioAnalyzer analyzer;
+  final AppSettings settings;
   final bool showBars;
   final ValueChanged<bool> onShowBars;
 
@@ -206,6 +263,24 @@ class _SpectrogramBody extends StatelessWidget {
             columns: analyzer.spectrogram,
             markers: analyzer.markers,
             showBars: showBars,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: MetroSpacing.sm),
+          child: Row(
+            children: [
+              const Icon(Icons.tune, size: 20),
+              const SizedBox(width: MetroSpacing.sm),
+              const Text('Sensitivity'),
+              Expanded(
+                child: Slider(
+                  value: settings.spectrogramSensitivity,
+                  label: '${(settings.spectrogramSensitivity * 100).round()}%',
+                  divisions: 20,
+                  onChanged: settings.setSpectrogramSensitivity,
+                ),
+              ),
+            ],
           ),
         ),
         SwitchListTile(

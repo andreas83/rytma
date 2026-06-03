@@ -24,6 +24,21 @@ void main() {
       expect(reading.cents, greaterThan(5));
       expect(reading.inTune, isFalse);
     });
+
+    test('honours a custom reference pitch', () {
+      // At A4 = 432, a 432 Hz tone is a perfectly in-tune A4...
+      final at432 = Pitch.noteFromFrequency(432, a4: 432);
+      expect(at432.name, 'A');
+      expect(at432.octave, 4);
+      expect(at432.cents.abs(), lessThan(0.5));
+      expect(at432.inTune, isTrue);
+
+      // ...while the same tone read against A4 = 440 is noticeably flat.
+      final at440 = Pitch.noteFromFrequency(432, a4: 440);
+      expect(at440.name, 'A');
+      expect(at440.cents, lessThan(-5));
+      expect(at440.inTune, isFalse);
+    });
   });
 
   group('Pitch.detectFrequency', () {

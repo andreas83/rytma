@@ -9,6 +9,7 @@ import '../widgets/section_label.dart';
 import '../widgets/subdivision_picker.dart';
 import '../widgets/tempo_control.dart';
 import 'setlist_screen.dart';
+import 'settings_screen.dart';
 
 /// Main metronome screen: tempo, meter, accents and subdivisions.
 class MetronomeScreen extends StatelessWidget {
@@ -28,6 +29,13 @@ class MetronomeScreen extends StatelessWidget {
             icon: const Icon(Icons.queue_music),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SetlistScreen()),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],

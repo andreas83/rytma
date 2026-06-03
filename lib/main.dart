@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'services/audio_analyzer.dart';
 import 'services/loop_recorder.dart';
+import 'state/app_settings.dart';
 import 'state/metronome_controller.dart';
 import 'ui/home_shell.dart';
 import 'ui/theme.dart';
@@ -13,6 +14,7 @@ void main() {
   final controller = MetronomeController()..init();
   final looper = LoopRecorder();
   final analyzer = AudioAnalyzer();
+  final settings = AppSettings()..load();
 
   // Drive the looper's bar-synced features from the metronome's transport.
   controller.bar.addListener(() => looper.handleBar(controller.currentBar));
@@ -21,6 +23,7 @@ void main() {
     controller: controller,
     looper: looper,
     analyzer: analyzer,
+    settings: settings,
   ));
 }
 
@@ -30,11 +33,13 @@ class MetroPowerApp extends StatelessWidget {
     required this.controller,
     required this.looper,
     required this.analyzer,
+    required this.settings,
   });
 
   final MetronomeController controller;
   final LoopRecorder looper;
   final AudioAnalyzer analyzer;
+  final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +48,7 @@ class MetroPowerApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: controller),
         ChangeNotifierProvider.value(value: looper),
         ChangeNotifierProvider.value(value: analyzer),
+        ChangeNotifierProvider.value(value: settings),
       ],
       child: MaterialApp(
         title: 'Metro Power',

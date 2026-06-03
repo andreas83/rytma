@@ -22,12 +22,16 @@ and Web — built for musicians who need more than a plain click.
   one-shot, and **trim**. Record/playback can **phase-lock to the metronome's
   bars**, and an off-length take can be **warped** (pitch-preserving
   time-stretch) or cropped to fit the grid.
-- **Tuner (Stimmgerät)** — chromatic instrument tuner with a cents needle and
-  frequency readout (A4 = 440 Hz).
+- **Tuner (Stimmgerät)** — chromatic instrument tuner with a cents needle, a
+  green in-tune tolerance band, and a **selectable reference pitch** (A4,
+  415–466 Hz — e.g. 432 or 442).
 - **Spectrogram** — live scrolling FFT view of the incoming audio, with an
-  optional overlay marking the metronome's bar downbeats.
+  adjustable **sensitivity** and an optional overlay marking the metronome's bar
+  downbeats.
 - **Setlist** — built-in starter presets plus save/recall of your own named
   presets; your last setup is restored on launch.
+- **Settings** — app-wide options such as **keep screen awake** while you
+  practice.
 
 The click sounds are **synthesized at runtime**, so the app ships with no audio
 asset files and each accent level has its own distinct pitch.

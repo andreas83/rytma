@@ -23,10 +23,14 @@ basic click, it offers:
   and an off-length take can be **warped** (time-stretched, no pitch change) or
   cropped to whole bars.
 - **Tuner (Stimmgerät)** — chromatic pitch detection (note + cents) from the mic,
-  using the YIN algorithm (`engine/pitch.dart`).
-- **Spectrogram** — live FFT heatmap of the mic input, optionally overlaying the
-  metronome's bar downbeats.
+  using the YIN algorithm (`engine/pitch.dart`), with a **selectable reference
+  pitch** (A4, 415–466 Hz) and a green **in-tune tolerance band** on the dial.
+- **Spectrogram** — live FFT heatmap of the mic input, with an adjustable
+  **sensitivity** (display gain) and an optional overlay of the metronome's bar
+  downbeats.
 - **Setlist** — built-in starter presets plus save/recall of named user presets.
+- **Settings** — app-wide options (e.g. *keep screen awake*) reached from the
+  gear in the Metronome app bar; persisted in `AppSettings`.
 
 ## Tech stack
 
@@ -45,7 +49,9 @@ basic click, it offers:
   `startStream` for live PCM + [`fftea`](https://pub.dev/packages/fftea) for the
   FFT. Pitch detection is hand-rolled autocorrelation (`engine/pitch.dart`).
 - Persistence: [`shared_preferences`](https://pub.dev/packages/shared_preferences)
-  (presets + last-used state as JSON).
+  (presets + last-used state as JSON; also the `AppSettings` prefs).
+- Keep-awake: [`wakelock_plus`](https://pub.dev/packages/wakelock_plus), toggled
+  by the *keep screen awake* setting.
 
 > Note: the audio backend is isolated behind `AudioClicks` (see Architecture),
 > so it can be swapped without touching the engine, controller, or UI. (An
@@ -80,11 +86,14 @@ lib/
     preset_store.dart        shared_preferences persistence.
   state/
     metronome_controller.dart  The central view-model (ChangeNotifier).
+    app_settings.dart          App-wide prefs (reference pitch, spectrogram
+                               sensitivity, keep-awake); persists itself + drives
+                               wakelock.
   ui/
     theme.dart               Color palette + ThemeData.
     home_shell.dart          NavigationBar + persistent TransportBar.
     screens/                 metronome / polyrhythm / training / looper /
-                             analyzer (tuner + spectrogram) / setlist
+                             analyzer (tuner + spectrogram) / setlist / settings
     widgets/                 tempo_control / beat_grid / subdivision_picker /
                              transport_bar / tuner_gauge / spectrogram_view
 test/

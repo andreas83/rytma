@@ -45,6 +45,16 @@ class AudioAnalyzer extends ChangeNotifier {
   /// Below this RMS the input is treated as silence (noise gate).
   static const double _gate = 0.012;
 
+  /// Concert-pitch reference for note mapping (Hz). Pushed from app settings.
+  double referenceA4 = 440;
+
+  /// Spectrogram display sensitivity, 0..1 (0.5 == neutral). Higher lifts quiet
+  /// detail; it only changes the visualization, not the captured audio.
+  double sensitivity = 0.5;
+
+  void setReferenceA4(double hz) => referenceA4 = hz;
+  void setSensitivity(double value) => sensitivity = value.clamp(0.0, 1.0);
+
   /// Rolling history of spectral columns (each [displayBins] long, 0..1).
   final ListQueue<Float64List> _spectrogram = ListQueue();
 
@@ -168,7 +178,7 @@ class AudioAnalyzer extends ChangeNotifier {
       } else {
         _smoothedHz = prev * 0.78 + hz * 0.22;
       }
-      _reading = Pitch.noteFromFrequency(_smoothedHz!);
+      _reading = Pitch.noteFromFrequency(_smoothedHz!, a4: referenceA4);
     } else {
       // Hold the last reading for a few frames before clearing, to avoid flicker.
       if (++_silentFrames > 8) {
@@ -186,6 +196,8 @@ class AudioAnalyzer extends ChangeNotifier {
     const minF = 50.0;
     final maxF = min(nyquist, 10000.0);
     final binHz = nyquist / mags.length;
+    // Sensitivity shifts the dB floor: +/-30 dB around the neutral 0.5.
+    final boostDb = (sensitivity - 0.5) * 60.0;
     for (var i = 0; i < displayBins; i++) {
       final f0 = minF * pow(maxF / minF, i / displayBins);
       final f1 = minF * pow(maxF / minF, (i + 1) / displayBins);
@@ -197,9 +209,9 @@ class AudioAnalyzer extends ChangeNotifier {
       for (var b = lo; b < hi; b++) {
         if (mags[b] > peak) peak = mags[b];
       }
-      // Log compression to a perceptual 0..1 range.
+      // Log compression to a perceptual 0..1 range, shifted by sensitivity.
       final db = 20 * (log(peak + 1e-9) / ln10);
-      out[i] = ((db + 70) / 70).clamp(0.0, 1.0);
+      out[i] = ((db + 70 + boostDb) / 70).clamp(0.0, 1.0);
     }
     return out;
   }
