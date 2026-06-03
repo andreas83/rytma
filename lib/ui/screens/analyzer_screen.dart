@@ -75,7 +75,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
               onSelectionChanged: (s) => setState(() => _mode = s.first),
             ),
             const SizedBox(height: 12),
-            _MicButton(analyzer: analyzer),
+            _ListeningBar(analyzer: analyzer),
             if (analyzer.error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -101,22 +101,39 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
   }
 }
 
-class _MicButton extends StatelessWidget {
-  const _MicButton({required this.analyzer});
+/// Passive listening indicator with an input-level meter. The mic starts and
+/// stops automatically with the Analyzer tab, so there is no manual button.
+class _ListeningBar extends StatelessWidget {
+  const _ListeningBar({required this.analyzer});
 
   final AudioAnalyzer analyzer;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return FilledButton.icon(
-      onPressed: () => analyzer.isRunning ? analyzer.stop() : analyzer.start(),
-      icon: Icon(analyzer.isRunning ? Icons.stop : Icons.mic),
-      label: Text(analyzer.isRunning ? 'Stop listening' : 'Start listening'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(double.infinity, 52),
-        backgroundColor: analyzer.isRunning ? scheme.error : scheme.primary,
-      ),
+    final running = analyzer.isRunning;
+    // Map RMS (~0..0.3) to a 0..1 bar.
+    final level = (analyzer.level * 3.2).clamp(0.0, 1.0);
+    return Row(
+      children: [
+        Icon(running ? Icons.mic : Icons.mic_off,
+            color: running ? scheme.primary : Colors.white38, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: running ? level : 0,
+              minHeight: 8,
+              backgroundColor: Colors.white12,
+              valueColor: AlwaysStoppedAnimation(scheme.primary),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(running ? 'Listening' : 'Idle',
+            style: Theme.of(context).textTheme.bodySmall),
+      ],
     );
   }
 }
@@ -135,9 +152,7 @@ class _TunerBody extends StatelessWidget {
             TunerGauge(reading: analyzer.reading),
             const SizedBox(height: 16),
             Text(
-              analyzer.isRunning
-                  ? 'Play a single note to tune (A4 = 440 Hz).'
-                  : 'Tap “Start listening” and play a note.',
+              'Play a single note to tune (A4 = 440 Hz).',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

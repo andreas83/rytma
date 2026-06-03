@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../services/audio_analyzer.dart';
 import 'screens/analyzer_screen.dart';
 import 'screens/looper_screen.dart';
 import 'screens/metronome_screen.dart';
@@ -19,6 +21,9 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  /// Index of the Analyzer tab; the mic is started/stopped with it.
+  static const _analyzerIndex = 4;
+
   static const _screens = [
     MetronomeScreen(),
     PolyrhythmScreen(),
@@ -26,6 +31,17 @@ class _HomeShellState extends State<HomeShell> {
     LooperScreen(),
     AnalyzerScreen(),
   ];
+
+  void _onDestinationSelected(int i) {
+    if (i == _index) return;
+    final analyzer = context.read<AudioAnalyzer>();
+    if (i == _analyzerIndex) {
+      analyzer.start();
+    } else if (_index == _analyzerIndex) {
+      analyzer.stop();
+    }
+    setState(() => _index = i);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +56,7 @@ class _HomeShellState extends State<HomeShell> {
           const TransportBar(),
           NavigationBar(
             selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
+            onDestinationSelected: _onDestinationSelected,
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.av_timer_outlined),

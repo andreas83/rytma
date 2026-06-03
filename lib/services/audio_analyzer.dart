@@ -34,6 +34,17 @@ class AudioAnalyzer extends ChangeNotifier {
   String? _error;
   NoteReading? _reading;
 
+  /// Smoothed input level (RMS, 0..1) for the listening indicator / gate.
+  double _level = 0;
+
+  /// Exponentially smoothed fundamental, so the tuner needle is relaxed rather
+  /// than jumpy. Held briefly across short dropouts.
+  double? _smoothedHz;
+  int _silentFrames = 0;
+
+  /// Below this RMS the input is treated as silence (noise gate).
+  static const double _gate = 0.012;
+
   /// Rolling history of spectral columns (each [displayBins] long, 0..1).
   final ListQueue<Float64List> _spectrogram = ListQueue();
 
@@ -44,6 +55,7 @@ class AudioAnalyzer extends ChangeNotifier {
   bool get isRunning => _running;
   String? get error => _error;
   NoteReading? get reading => _reading;
+  double get level => _level;
   List<Float64List> get spectrogram => _spectrogram.toList(growable: false);
   List<bool> get markers => _markers.toList(growable: false);
 
@@ -76,12 +88,16 @@ class AudioAnalyzer extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    if (!_running && _sub == null) return;
     _running = false;
     await _sub?.cancel();
     _sub = null;
     if (await _recorder.isRecording()) {
       await _recorder.stop();
     }
+    _level = 0;
+    _reading = null;
+    _smoothedHz = null;
     notifyListeners();
   }
 
@@ -110,8 +126,15 @@ class AudioAnalyzer extends ChangeNotifier {
   }
 
   void _analyze() {
-    // Pitch on the raw (centered) window.
-    _reading = _readingFromFrame();
+    // Input level (RMS) with light smoothing, used as a noise gate.
+    var sumSq = 0.0;
+    for (var i = 0; i < fftSize; i++) {
+      sumSq += _frame[i] * _frame[i];
+    }
+    final rms = sqrt(sumSq / fftSize);
+    _level = _level * 0.6 + rms * 0.4;
+
+    _updatePitch(rms);
 
     // Spectrum on a Hann-windowed copy.
     final windowed = Float64List(fftSize);
@@ -129,11 +152,30 @@ class AudioAnalyzer extends ChangeNotifier {
     notifyListeners();
   }
 
-  NoteReading? _readingFromFrame() {
-    final copy = Float64List.fromList(_frame);
-    final hz = Pitch.detectFrequency(copy, sampleRate);
-    if (hz == null) return null;
-    return Pitch.noteFromFrequency(hz);
+  /// Update the (smoothed, gated, briefly-held) tuner reading.
+  void _updatePitch(double rms) {
+    final hz = rms < _gate
+        ? null
+        : Pitch.detectFrequency(Float64List.fromList(_frame), sampleRate);
+
+    if (hz != null) {
+      _silentFrames = 0;
+      final prev = _smoothedHz;
+      // Jump straight to the new value on a large change (new note / octave),
+      // otherwise ease toward it so the needle glides.
+      if (prev == null || (hz / prev - 1).abs() > 0.06) {
+        _smoothedHz = hz;
+      } else {
+        _smoothedHz = prev * 0.78 + hz * 0.22;
+      }
+      _reading = Pitch.noteFromFrequency(_smoothedHz!);
+    } else {
+      // Hold the last reading for a few frames before clearing, to avoid flicker.
+      if (++_silentFrames > 8) {
+        _reading = null;
+        _smoothedHz = null;
+      }
+    }
   }
 
   /// Collapse the linear FFT bins into [displayBins] log-spaced, log-scaled

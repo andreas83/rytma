@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../services/loop_recorder.dart';
 
-/// Looper screen: record microphone takes that loop continuously and stack as
-/// layers over the metronome, with per-layer volume / mute / solo plus undo,
-/// stop-all and clear.
+/// Looper screen — a multi-channel loop station. Each channel is a pad you can
+/// record into; all recorded channels loop together over the metronome, with
+/// per-channel volume / mute / play-stop and global play-all / clear.
 class LooperScreen extends StatelessWidget {
   const LooperScreen({super.key});
 
@@ -18,17 +18,12 @@ class LooperScreen extends StatelessWidget {
         title: const Text('Looper'),
         actions: [
           IconButton(
-            tooltip: 'Undo last loop',
-            icon: const Icon(Icons.undo),
-            onPressed: recorder.isEmpty ? null : recorder.undoLast,
-          ),
-          IconButton(
-            tooltip: recorder.isPlaying ? 'Stop all' : 'Play all',
-            icon: Icon(recorder.isPlaying ? Icons.pause : Icons.play_arrow),
+            tooltip: recorder.anyPlaying ? 'Stop all' : 'Play all',
+            icon: Icon(recorder.anyPlaying ? Icons.pause : Icons.play_arrow),
             onPressed: recorder.isEmpty ? null : recorder.togglePlayAll,
           ),
           IconButton(
-            tooltip: 'Clear all loops',
+            tooltip: 'Clear all',
             icon: const Icon(Icons.delete_sweep_outlined),
             onPressed: recorder.isEmpty ? null : recorder.clearAll,
           ),
@@ -36,12 +31,16 @@ class LooperScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          const SizedBox(height: 20),
-          _RecordButton(recorder: recorder),
-          const SizedBox(height: 8),
-          Text(
-            recorder.isRecording ? 'Recording…' : 'Tap to record a loop',
-            style: Theme.of(context).textTheme.bodyMedium,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text(
+              recorder.isRecording
+                  ? 'Recording channel ${recorder.recordingIndex! + 1}… tap it again to loop.'
+                  : 'Tap a channel to record; tap again to loop it. '
+                      'Channels play together.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
           if (recorder.error != null)
             Padding(
@@ -51,24 +50,19 @@ class LooperScreen extends StatelessWidget {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-          const Divider(height: 28),
           Expanded(
-            child: recorder.isEmpty
-                ? Center(
-                    child: Text(
-                      'No loops yet.\nRecord over the running metronome to build layers.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: recorder.layers.length,
-                    itemBuilder: (context, i) => _LayerCard(
-                      recorder: recorder,
-                      index: i,
-                    ),
-                  ),
+            child: GridView.builder(
+              padding: const EdgeInsets.all(12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                mainAxisExtent: 232,
+              ),
+              itemCount: LoopRecorder.channelCount,
+              itemBuilder: (context, i) =>
+                  _ChannelPad(recorder: recorder, channel: recorder.channels[i]),
+            ),
           ),
         ],
       ),
@@ -76,101 +70,141 @@ class LooperScreen extends StatelessWidget {
   }
 }
 
-class _LayerCard extends StatelessWidget {
-  const _LayerCard({required this.recorder, required this.index});
+class _ChannelPad extends StatelessWidget {
+  const _ChannelPad({required this.recorder, required this.channel});
 
   final LoopRecorder recorder;
-  final int index;
+  final LoopChannel channel;
 
   @override
   Widget build(BuildContext context) {
-    final layer = recorder.layers[index];
     final scheme = Theme.of(context).colorScheme;
+    final style = _padStyle(channel.state, scheme);
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
         child: Column(
           children: [
             Row(
               children: [
-                Text('Loop ${index + 1}',
+                Text('Channel ${channel.index + 1}',
                     style: const TextStyle(fontWeight: FontWeight.w600)),
                 const Spacer(),
-                IconButton(
-                  tooltip: 'Mute',
-                  isSelected: layer.muted,
-                  icon: Icon(layer.muted ? Icons.volume_off : Icons.volume_up),
-                  color: layer.muted ? scheme.error : null,
-                  onPressed: () => recorder.toggleMute(layer.id),
-                ),
-                IconButton(
-                  tooltip: 'Solo',
-                  icon: const Text('S', style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: () => recorder.toggleSolo(layer.id),
-                ),
-                IconButton(
-                  tooltip: 'Delete',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => recorder.removeLayer(layer.id),
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: style.dot),
                 ),
               ],
             ),
-            Row(
-              children: [
-                const Icon(Icons.graphic_eq, size: 18),
-                Expanded(
-                  child: Slider(
-                    value: layer.volume,
-                    onChanged: (v) => recorder.setVolume(layer.id, v),
+            const SizedBox(height: 6),
+            Expanded(
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => recorder.tapChannel(channel.index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 78,
+                    height: 78,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: style.fill,
+                      boxShadow: [
+                        BoxShadow(
+                          color: style.fill.withValues(alpha: 0.4),
+                          blurRadius: 16,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Icon(style.icon, size: 38, color: Colors.white),
                   ),
                 ),
-                SizedBox(
-                  width: 44,
-                  child: Text('${(layer.volume * 100).round()}%',
-                      textAlign: TextAlign.end),
+              ),
+            ),
+            Text(style.label, style: TextStyle(color: style.dot, fontSize: 12)),
+            Row(
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Mute',
+                  isSelected: channel.muted,
+                  color: channel.muted ? scheme.error : null,
+                  icon: Icon(channel.muted ? Icons.volume_off : Icons.volume_up,
+                      size: 20),
+                  onPressed: channel.hasLoop
+                      ? () => recorder.toggleMute(channel.index)
+                      : null,
                 ),
-                const SizedBox(width: 8),
+                Expanded(
+                  child: Slider(
+                    value: channel.volume,
+                    onChanged: channel.hasLoop
+                        ? (v) => recorder.setVolume(channel.index, v)
+                        : null,
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Clear',
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  onPressed: channel.state == ChannelState.empty
+                      ? null
+                      : () => recorder.clearChannel(channel.index),
+                ),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  _PadStyle _padStyle(ChannelState state, ColorScheme scheme) {
+    switch (state) {
+      case ChannelState.empty:
+        return _PadStyle(
+          fill: scheme.primary,
+          dot: Colors.white38,
+          icon: Icons.fiber_manual_record,
+          label: 'Empty — tap to record',
+        );
+      case ChannelState.recording:
+        return _PadStyle(
+          fill: scheme.error,
+          dot: scheme.error,
+          icon: Icons.stop_rounded,
+          label: 'Recording…',
+        );
+      case ChannelState.playing:
+        return const _PadStyle(
+          fill: Color(0xFF4CD964),
+          dot: Color(0xFF4CD964),
+          icon: Icons.pause,
+          label: 'Playing',
+        );
+      case ChannelState.stopped:
+        return const _PadStyle(
+          fill: Color(0xFFFFB300),
+          dot: Color(0xFFFFB300),
+          icon: Icons.play_arrow,
+          label: 'Stopped',
+        );
+    }
   }
 }
 
-class _RecordButton extends StatelessWidget {
-  const _RecordButton({required this.recorder});
+class _PadStyle {
+  const _PadStyle({
+    required this.fill,
+    required this.dot,
+    required this.icon,
+    required this.label,
+  });
 
-  final LoopRecorder recorder;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: recorder.toggleRecording,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 116,
-        height: 116,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: recorder.isRecording ? scheme.error : scheme.primary,
-          boxShadow: [
-            BoxShadow(
-              color: (recorder.isRecording ? scheme.error : scheme.primary)
-                  .withValues(alpha: 0.4),
-              blurRadius: 24,
-              spreadRadius: 4,
-            ),
-          ],
-        ),
-        child: Icon(
-          recorder.isRecording ? Icons.stop_rounded : Icons.fiber_manual_record,
-          size: 54,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
+  final Color fill;
+  final Color dot;
+  final IconData icon;
+  final String label;
 }

@@ -34,7 +34,16 @@ class TunerGauge extends StatelessWidget {
         SizedBox(
           height: 120,
           width: double.infinity,
-          child: CustomPaint(painter: _CentsDialPainter(r?.cents, accent)),
+          // Glide the needle toward the target so it reads as relaxed rather
+          // than jittery. Rests at center (0) when there is no signal.
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(end: (r?.cents ?? 0).clamp(-50.0, 50.0)),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            builder: (context, value, _) => CustomPaint(
+              painter: _CentsDialPainter(r == null ? null : value, accent),
+            ),
+          ),
         ),
         const SizedBox(height: 8),
         Text(

@@ -16,8 +16,9 @@ basic click, it offers:
   selectable timbre + volume for the cross-voice.
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
-- **Looper** — record microphone takes that loop continuously and stack as
-  layers, with per-layer volume / mute / solo, undo, stop-all and clear.
+- **Looper** — a multi-channel loop station: record into any of several
+  channels that loop together, each with volume / mute / play-stop, plus global
+  play-all and clear.
 - **Tuner (Stimmgerät)** — chromatic pitch detection (note + cents) from the mic,
   using the YIN algorithm (`engine/pitch.dart`).
 - **Spectrogram** — live FFT heatmap of the mic input, optionally overlaying the
@@ -133,8 +134,10 @@ PCM from the mic (`record.startStream`), runs an FFT (`fftea`) for the
 spectrogram and autocorrelation (`engine/pitch.dart`) for the tuner, and keeps a
 rolling history of spectral columns. The Analyzer screen listens to
 `MetronomeController.pulse` and calls `AudioAnalyzer.markBar()` on each downbeat
-so the spectrogram can draw bar lines. Note: only one mic consumer should run at
-a time (looper vs. analyzer).
+so the spectrogram can draw bar lines. The mic is started/stopped automatically
+by `HomeShell` when the Analyzer tab gains/loses focus (no manual button), and
+the tuner reading is noise-gated and exponentially smoothed for a relaxed
+needle. Note: only one mic consumer should run at a time (looper vs. analyzer).
 
 ## Conventions
 
