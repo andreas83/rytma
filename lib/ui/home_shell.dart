@@ -6,6 +6,7 @@ import 'screens/analyzer_screen.dart';
 import 'screens/looper_screen.dart';
 import 'screens/metronome_screen.dart';
 import 'screens/polyrhythm_screen.dart';
+import 'screens/sequencer_screen.dart';
 import 'screens/training_screen.dart';
 import 'widgets/transport_bar.dart';
 
@@ -22,11 +23,12 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   /// Index of the Analyzer tab; the mic is started/stopped with it.
-  static const _analyzerIndex = 4;
+  static const _analyzerIndex = 5;
 
   static const _screens = [
     MetronomeScreen(),
     PolyrhythmScreen(),
+    SequencerScreen(),
     TrainingScreen(),
     LooperScreen(),
     AnalyzerScreen(),
@@ -67,6 +69,11 @@ class _HomeShellState extends State<HomeShell> {
                 icon: Icon(Icons.grid_goldenratio_outlined),
                 selectedIcon: Icon(Icons.grid_goldenratio),
                 label: 'Polyrhythm',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.grid_on_outlined),
+                selectedIcon: Icon(Icons.grid_on),
+                label: 'Sequencer',
               ),
               NavigationDestination(
                 icon: Icon(Icons.fitness_center_outlined),

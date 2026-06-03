@@ -45,6 +45,10 @@ class Pitch {
     );
   }
 
+  /// The frequency (Hz) of a MIDI note number, using [a4] as the reference.
+  static double frequencyForMidi(num midi, {double a4 = 440}) =>
+      a4 * pow(2, (midi - 69) / 12).toDouble();
+
   /// Estimate the fundamental frequency of [samples] using the YIN algorithm
   /// (de Cheveigné & Kawahara). Returns null when the signal is too quiet or no
   /// confident pitch is found.

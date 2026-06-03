@@ -12,6 +12,11 @@ and Web — built for musicians who need more than a plain click.
 - **Polyrhythm** — layer a second voice of *N* evenly spaced pulses across the
   bar for a `beats : N` cross-rhythm, with a color-coded visualizer plus a
   selectable sound and volume for the cross-voice.
+- **Sequencer** — a step sequencer for quick **backing tracks**: drum lanes
+  (kick / snare / hat / clap) plus **bass** and **chord** lanes that play in a
+  chosen **key and scale**. Pick a pattern length (8 / 16 / 32 steps), mute and
+  mix each track, and loop it on its own transport — the tempo follows the
+  metronome unless you set your own. Every sound is synthesized at runtime.
 - **Training**
   - *Tempo ramp* — automatically change BPM by a step every few bars up to a
     target (great for speed-building).

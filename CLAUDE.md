@@ -14,6 +14,13 @@ basic click, it offers:
 - **Polyrhythm** — a second voice of *N* evenly spaced pulses against the bar,
   giving a `beats : N` cross-rhythm with a color-coded visualizer and a
   selectable timbre + volume for the cross-voice.
+- **Sequencer** — a step sequencer for quick backing tracks: drum lanes (kick /
+  snare / hat / clap) plus monophonic **bass** and **chord** lanes that play in a
+  chosen **key + scale** (the lanes store row indices; `Music` maps them to
+  pitches). Adjustable pattern length (8 / 16 / 32 steps), per-track mute +
+  volume mixer, and its **own transport** that loops independently — its tempo
+  *follows the metronome's BPM* unless overridden. All sounds are synthesized at
+  runtime (`engine/synth.dart`).
 - **Training** — a *tempo ramp* ("automator") that changes BPM over time and a
   *gap trainer* ("coach") that periodically mutes the click.
 - **Looper** — a multi-channel loop station: record into any of several
@@ -68,6 +75,7 @@ lib/
     subdivision.dart         enum: pulses-per-beat.
     accent.dart              enum: mute / weak / normal / strong.
     poly_timbre.dart         enum: selectable polyrhythm-voice sound.
+    sequencer_pattern.dart   Step-sequencer pattern (drums + bass/chord lanes).
     trainer_config.dart      Tempo-ramp + gap-trainer settings.
     metronome_state.dart     The full serializable app state.
     preset.dart              A named saved MetronomeState.
@@ -76,24 +84,29 @@ lib/
     tick_event.dart          ClickType enum + TickEvent.
     wav.dart                 Shared 16-bit PCM WAV encoder (clicks + loops).
     click_synth.dart         Generates 16-bit mono WAV click samples in memory.
+    synth.dart               Drum + pitched-tone synthesis; `Music` theory helper.
     metronome_engine.dart    Stopwatch + look-ahead scheduler; bar callback.
+    sequencer_engine.dart    Stopwatch + look-ahead scheduler; per-step callback.
     pitch.dart               Frequency→note math + YIN pitch detector.
     time_stretch.dart        WSOLA time-stretch (loop "warp", pitch-preserving).
   services/                  Platform/plugin wrappers.
     audio_clicks.dart        flutter_soloud wrapper; loads synthesized clicks.
+    synth_audio.dart         flutter_soloud wrapper; renders/caches synth voices.
     loop_recorder.dart       Multi-channel looper: record (PCM) + soloud playback.
     audio_analyzer.dart      Mic stream → FFT spectrogram + pitch (ChangeNotifier).
     preset_store.dart        shared_preferences persistence.
   state/
     metronome_controller.dart  The central view-model (ChangeNotifier).
+    sequencer_controller.dart  Step-sequencer view-model: clock + synth + persist.
     app_settings.dart          App-wide prefs (reference pitch, spectrogram
                                sensitivity, keep-awake); persists itself + drives
                                wakelock.
   ui/
     theme.dart               Color palette + ThemeData.
     home_shell.dart          NavigationBar + persistent TransportBar.
-    screens/                 metronome / polyrhythm / training / looper /
-                             analyzer (tuner + spectrogram) / setlist / settings
+    screens/                 metronome / polyrhythm / sequencer / training /
+                             looper / analyzer (tuner + spectrogram) / setlist /
+                             settings
     widgets/                 tempo_control / beat_grid / subdivision_picker /
                              transport_bar / tuner_gauge / spectrogram_view
 test/
