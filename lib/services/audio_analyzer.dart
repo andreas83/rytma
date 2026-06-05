@@ -22,6 +22,9 @@ class AudioAnalyzer extends ChangeNotifier {
   static const int displayBins = 110;
   static const int maxColumns = 240;
 
+  /// How many recent pitch frames the tuner trend line keeps (~2.7 s).
+  static const int centsHistoryLength = 120;
+
   final AudioRecorder _recorder = AudioRecorder();
   final FFT _fft = FFT(fftSize);
   final Float64List _window = _hann(fftSize);
@@ -62,12 +65,17 @@ class AudioAnalyzer extends ChangeNotifier {
   final ListQueue<bool> _markers = ListQueue();
   bool _pendingMarker = false;
 
+  /// Rolling history of cents deviation for the tuner trend line; null entries
+  /// mark frames with no detected pitch (silence) so the chart can break there.
+  final ListQueue<double?> _centsHistory = ListQueue();
+
   bool get isRunning => _running;
   String? get error => _error;
   NoteReading? get reading => _reading;
   double get level => _level;
   List<Float64List> get spectrogram => _spectrogram.toList(growable: false);
   List<bool> get markers => _markers.toList(growable: false);
+  List<double?> get centsHistory => _centsHistory.toList(growable: false);
 
   /// Flag that a metronome bar started; the next produced column is marked.
   void markBar() => _pendingMarker = true;
@@ -114,6 +122,7 @@ class AudioAnalyzer extends ChangeNotifier {
   void clear() {
     _spectrogram.clear();
     _markers.clear();
+    _centsHistory.clear();
     _reading = null;
     notifyListeners();
   }
@@ -145,6 +154,10 @@ class AudioAnalyzer extends ChangeNotifier {
     _level = _level * 0.6 + rms * 0.4;
 
     _updatePitch(rms);
+    _centsHistory.addLast(_reading?.cents);
+    while (_centsHistory.length > centsHistoryLength) {
+      _centsHistory.removeFirst();
+    }
 
     // Spectrum on a Hann-windowed copy.
     final windowed = Float64List(fftSize);

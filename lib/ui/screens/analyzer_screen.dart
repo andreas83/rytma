@@ -7,6 +7,7 @@ import '../../state/metronome_controller.dart';
 import '../theme.dart';
 import '../widgets/spectrogram_view.dart';
 import '../widgets/tuner_gauge.dart';
+import '../widgets/tuner_history_chart.dart';
 
 enum _Mode { tuner, spectrogram }
 
@@ -180,6 +181,8 @@ class _TunerBody extends StatelessWidget {
         child: Column(
           children: [
             TunerGauge(reading: analyzer.reading),
+            const SizedBox(height: MetroSpacing.md),
+            TunerHistoryChart(history: analyzer.centsHistory),
             const SizedBox(height: MetroSpacing.lg),
             _ReferencePitch(settings: settings),
             const SizedBox(height: MetroSpacing.md),
