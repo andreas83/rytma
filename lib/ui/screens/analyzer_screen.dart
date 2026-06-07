@@ -81,14 +81,14 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
               selected: {_mode},
               onSelectionChanged: (s) => setState(() => _mode = s.first),
             ),
-            const SizedBox(height: MetroSpacing.md),
+            const SizedBox(height: RytmaSpacing.md),
             _ListeningBar(analyzer: analyzer),
             if (analyzer.error != null)
               Padding(
-                padding: const EdgeInsets.only(top: MetroSpacing.sm),
+                padding: const EdgeInsets.only(top: RytmaSpacing.sm),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: MetroSpacing.md, vertical: MetroSpacing.sm),
+                      horizontal: RytmaSpacing.md, vertical: RytmaSpacing.sm),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(kRadius),
@@ -99,7 +99,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
                           size: 20,
                           color:
                               Theme.of(context).colorScheme.onErrorContainer),
-                      const SizedBox(width: MetroSpacing.sm),
+                      const SizedBox(width: RytmaSpacing.sm),
                       Expanded(
                         child: Text(
                           analyzer.error!,
@@ -113,7 +113,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
                   ),
                 ),
               ),
-            const SizedBox(height: MetroSpacing.lg),
+            const SizedBox(height: RytmaSpacing.lg),
             Expanded(
               child: _mode == _Mode.tuner
                   ? _TunerBody(analyzer: analyzer, settings: settings)
@@ -181,11 +181,11 @@ class _TunerBody extends StatelessWidget {
         child: Column(
           children: [
             TunerGauge(reading: analyzer.reading),
-            const SizedBox(height: MetroSpacing.md),
+            const SizedBox(height: RytmaSpacing.md),
             TunerHistoryChart(history: analyzer.centsHistory),
-            const SizedBox(height: MetroSpacing.lg),
+            const SizedBox(height: RytmaSpacing.lg),
             _ReferencePitch(settings: settings),
-            const SizedBox(height: MetroSpacing.md),
+            const SizedBox(height: RytmaSpacing.md),
             Text(
               'Play a single note to tune. Green band = in tune.',
               textAlign: TextAlign.center,
@@ -212,7 +212,7 @@ class _ReferencePitch extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text('Reference', style: TextStyle(color: scheme.onSurfaceVariant)),
-        const SizedBox(width: MetroSpacing.md),
+        const SizedBox(width: RytmaSpacing.md),
         IconButton.filledTonal(
           tooltip: '−1 Hz',
           visualDensity: VisualDensity.compact,
@@ -269,11 +269,11 @@ class _SpectrogramBody extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: MetroSpacing.sm),
+          padding: const EdgeInsets.only(top: RytmaSpacing.sm),
           child: Row(
             children: [
               const Icon(Icons.tune, size: 20),
-              const SizedBox(width: MetroSpacing.sm),
+              const SizedBox(width: RytmaSpacing.sm),
               const Text('Sensitivity'),
               Expanded(
                 child: Slider(

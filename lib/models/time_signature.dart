@@ -1,7 +1,7 @@
 /// A musical time signature, e.g. 4/4, 6/8, 7/8.
 ///
 /// [beats] is the number of beats per bar (the upper numeral) and [unit] is
-/// the note value that represents one beat (the lower numeral). Metro Power
+/// the note value that represents one beat (the lower numeral). Rytma
 /// treats the displayed BPM as the rate of [beats], so [unit] is primarily
 /// informational / for display.
 class TimeSignature {

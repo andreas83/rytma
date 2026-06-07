@@ -46,13 +46,13 @@ class _EmptyPresets extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.symmetric(
-          horizontal: MetroSpacing.md, vertical: MetroSpacing.xs),
+          horizontal: RytmaSpacing.md, vertical: RytmaSpacing.xs),
       child: Padding(
-        padding: const EdgeInsets.all(MetroSpacing.lg),
+        padding: const EdgeInsets.all(RytmaSpacing.lg),
         child: Row(
           children: [
             Icon(Icons.bookmark_add_outlined, color: scheme.onSurfaceVariant),
-            const SizedBox(width: MetroSpacing.md),
+            const SizedBox(width: RytmaSpacing.md),
             Expanded(
               child: Text(
                 'No saved presets yet — tap “Save as preset” on the Metronome '
@@ -81,7 +81,7 @@ class _PresetTile extends StatelessWidget {
     final s = preset.state;
     return Card(
       margin: const EdgeInsets.symmetric(
-          horizontal: MetroSpacing.md, vertical: MetroSpacing.xs),
+          horizontal: RytmaSpacing.md, vertical: RytmaSpacing.xs),
       child: ListTile(
         leading: builtIn
             ? Icon(Icons.lock_outline, size: 20, color: scheme.onSurfaceVariant)

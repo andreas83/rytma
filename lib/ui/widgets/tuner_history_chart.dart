@@ -71,7 +71,7 @@ class _HistoryPainter extends CustomPainter {
     // In-tune band around centre.
     canvas.drawRect(
       Rect.fromLTRB(0, y(tolerance), w, y(-tolerance)),
-      Paint()..color = MetroColors.playing.withValues(alpha: 0.16),
+      Paint()..color = RytmaColors.playing.withValues(alpha: 0.16),
     );
 
     // Gridlines; the 0-cents axis is brighter.
@@ -96,7 +96,7 @@ class _HistoryPainter extends CustomPainter {
         ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..color = MetroColors.poly;
+        ..color = RytmaColors.poly;
       Path? path;
       for (var i = 0; i < n; i++) {
         final c = history[i];
@@ -120,7 +120,7 @@ class _HistoryPainter extends CustomPainter {
       final last = history.last;
       if (last != null) {
         final dot =
-            last.abs() <= tolerance ? MetroColors.playing : MetroColors.poly;
+            last.abs() <= tolerance ? RytmaColors.playing : RytmaColors.poly;
         canvas.drawCircle(Offset(w, y(last)), 3.5, Paint()..color = dot);
       }
     }

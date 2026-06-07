@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate the Metro Power app icon for every platform.
+"""Generate the Rytma app icon for every platform.
 
 Concept: a classic wind-up metronome whose swinging pendulum is a lightning
-bolt — "Metro" (metronome) + "Power" (the bolt). Brand purple gradient
+bolt — rhythm (metronome) + energy (the bolt). Brand purple gradient
 backdrop, amber energy bolt, cyan rhythm pulses.
 
 Pure-Pillow, no binary source asset: the art is drawn procedurally at high
@@ -16,14 +16,14 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Palette (matches lib/ui/theme.dart MetroColors).
+# Palette (matches lib/ui/theme.dart RytmaColors).
 PURPLE_HI = (158, 116, 255)   # vivid top-left
 PURPLE_LO = (38, 14, 78)      # deep bottom-right
 GLOW = (190, 160, 255)
 WHITE = (245, 242, 255)
-AMBER = (255, 193, 7)         # MetroColors.poly-ish (energy bolt)
+AMBER = (255, 193, 7)         # RytmaColors.poly-ish (energy bolt)
 AMBER_HI = (255, 224, 130)
-CYAN = (64, 196, 255)         # MetroColors.weak (rhythm pulses)
+CYAN = (64, 196, 255)         # RytmaColors.weak (rhythm pulses)
 INK = (22, 18, 40)
 
 

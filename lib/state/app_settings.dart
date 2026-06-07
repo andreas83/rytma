@@ -7,9 +7,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 /// whether to keep the screen awake. Persisted directly via
 /// [shared_preferences] and exposed as a [ChangeNotifier] provider.
 class AppSettings extends ChangeNotifier {
-  static const _kRefA4 = 'metro_power.reference_a4';
-  static const _kSensitivity = 'metro_power.spectrogram_sensitivity';
-  static const _kKeepAwake = 'metro_power.keep_awake';
+  static const _kRefA4 = 'rytma.reference_a4';
+  static const _kSensitivity = 'rytma.spectrogram_sensitivity';
+  static const _kKeepAwake = 'rytma.keep_awake';
 
   /// Reasonable bounds for the concert-pitch reference (Baroque 415 → high 466).
   static const double minA4 = 415;

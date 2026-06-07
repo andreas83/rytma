@@ -91,7 +91,7 @@ class LooperScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: MetroSpacing.md, vertical: MetroSpacing.sm),
+                    horizontal: RytmaSpacing.md, vertical: RytmaSpacing.sm),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(kRadius),
@@ -101,7 +101,7 @@ class LooperScreen extends StatelessWidget {
                     Icon(Icons.error_outline,
                         size: 20,
                         color: Theme.of(context).colorScheme.onErrorContainer),
-                    const SizedBox(width: MetroSpacing.sm),
+                    const SizedBox(width: RytmaSpacing.sm),
                     Expanded(
                       child: Text(
                         recorder.error!,
@@ -266,15 +266,15 @@ class _ChannelCard extends StatelessWidget {
         );
       case ChannelState.playing:
         return const _PadStyle(
-          fill: MetroColors.playing,
-          dot: MetroColors.playing,
+          fill: RytmaColors.playing,
+          dot: RytmaColors.playing,
           icon: Icons.pause,
           label: 'Playing',
         );
       case ChannelState.stopped:
         return const _PadStyle(
-          fill: MetroColors.stopped,
-          dot: MetroColors.stopped,
+          fill: RytmaColors.stopped,
+          dot: RytmaColors.stopped,
           icon: Icons.play_arrow,
           label: 'Stopped',
         );

@@ -63,13 +63,13 @@ class _BeatCell extends StatelessWidget {
   Color get _color {
     switch (accent) {
       case AccentLevel.strong:
-        return MetroColors.strong;
+        return RytmaColors.strong;
       case AccentLevel.normal:
-        return MetroColors.normal;
+        return RytmaColors.normal;
       case AccentLevel.weak:
-        return MetroColors.weak;
+        return RytmaColors.weak;
       case AccentLevel.mute:
-        return MetroColors.mute;
+        return RytmaColors.mute;
     }
   }
 

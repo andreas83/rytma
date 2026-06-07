@@ -18,7 +18,7 @@ if (hasReleaseSigning) {
 }
 
 android {
-    namespace = "com.metropower.metro_power"
+    namespace = "at.movingbytes.rytma"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,7 +28,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.metropower.metro_power"
+        applicationId = "at.movingbytes.rytma"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

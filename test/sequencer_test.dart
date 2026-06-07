@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metro_power/engine/pitch.dart';
-import 'package:metro_power/engine/sequencer_engine.dart';
-import 'package:metro_power/engine/synth.dart';
-import 'package:metro_power/models/sequencer_pattern.dart';
+import 'package:rytma/engine/pitch.dart';
+import 'package:rytma/engine/sequencer_engine.dart';
+import 'package:rytma/engine/synth.dart';
+import 'package:rytma/models/sequencer_pattern.dart';
 
 void main() {
   group('Music theory mapping', () {

@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metro_power/engine/synth.dart';
-import 'package:metro_power/engine/track_export.dart';
-import 'package:metro_power/models/sequencer_pattern.dart';
+import 'package:rytma/engine/synth.dart';
+import 'package:rytma/engine/track_export.dart';
+import 'package:rytma/models/sequencer_pattern.dart';
 
 Int16List _pcm(Uint8List wav) {
   final bd = ByteData.sublistView(wav);

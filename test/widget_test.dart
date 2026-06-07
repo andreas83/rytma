@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metro_power/engine/click_synth.dart';
-import 'package:metro_power/models/accent.dart';
-import 'package:metro_power/models/metronome_state.dart';
-import 'package:metro_power/models/subdivision.dart';
-import 'package:metro_power/models/time_signature.dart';
-import 'package:metro_power/models/trainer_config.dart';
+import 'package:rytma/engine/click_synth.dart';
+import 'package:rytma/models/accent.dart';
+import 'package:rytma/models/metronome_state.dart';
+import 'package:rytma/models/subdivision.dart';
+import 'package:rytma/models/time_signature.dart';
+import 'package:rytma/models/trainer_config.dart';
 
 void main() {
   group('MetronomeState', () {

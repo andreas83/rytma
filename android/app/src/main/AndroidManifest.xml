@@ -2,7 +2,7 @@
     <!-- Required by the looper to record microphone audio. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
-        android:label="Metro Power"
+        android:label="Rytma"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

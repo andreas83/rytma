@@ -2,8 +2,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metro_power/engine/pitch.dart';
-import 'package:metro_power/engine/time_stretch.dart';
+import 'package:rytma/engine/pitch.dart';
+import 'package:rytma/engine/time_stretch.dart';
 
 Int16List sine(double freq, int samples, int sampleRate) {
   final out = Int16List(samples);

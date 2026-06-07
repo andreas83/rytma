@@ -72,7 +72,7 @@ class TrainingScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: MetroSpacing.md),
+          const SizedBox(height: RytmaSpacing.md),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),

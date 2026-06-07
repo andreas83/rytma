@@ -8,8 +8,8 @@ import '../models/preset.dart';
 /// Persists saved [Preset]s and the most recent [MetronomeState] using
 /// [shared_preferences]. State is stored as JSON strings.
 class PresetStore {
-  static const _presetsKey = 'metro_power.presets';
-  static const _lastKey = 'metro_power.last_state';
+  static const _presetsKey = 'rytma.presets';
+  static const _lastKey = 'rytma.last_state';
 
   Future<List<Preset>> loadPresets() async {
     final prefs = await SharedPreferences.getInstance();

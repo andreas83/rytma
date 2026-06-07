@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metro_power/models/sequencer_pattern.dart';
-import 'package:metro_power/models/sequencer_song.dart';
+import 'package:rytma/models/sequencer_pattern.dart';
+import 'package:rytma/models/sequencer_song.dart';
 
 void main() {
   group('SequencerSong', () {

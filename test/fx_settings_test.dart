@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metro_power/models/fx_settings.dart';
+import 'package:rytma/models/fx_settings.dart';
 
 void main() {
   group('FxSettings', () {

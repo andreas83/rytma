@@ -23,7 +23,7 @@ class TunerGauge extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = reading;
     final inTune = r != null && r.cents.abs() <= tolerance;
-    final accent = inTune ? MetroColors.playing : MetroColors.poly;
+    final accent = inTune ? RytmaColors.playing : RytmaColors.poly;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -122,7 +122,7 @@ class _CentsDialPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
       ..strokeCap = StrokeCap.round
-      ..color = MetroColors.playing.withValues(alpha: 0.30);
+      ..color = RytmaColors.playing.withValues(alpha: 0.30);
     canvas.drawArc(rect, a0, a1 - a0, false, band);
 
     // Tick marks every 10 cents across ±50.

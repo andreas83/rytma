@@ -22,7 +22,7 @@ class MetronomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Metro Power'),
+        title: const Text('Rytma'),
         actions: [
           IconButton(
             tooltip: 'Setlist',
@@ -44,9 +44,9 @@ class MetronomeScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           const TempoControl(),
-          const SizedBox(height: MetroSpacing.xl),
+          const SizedBox(height: RytmaSpacing.xl),
           const SectionLabel('Meter & accents'),
-          const SizedBox(height: MetroSpacing.sm),
+          const SizedBox(height: RytmaSpacing.sm),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -65,14 +65,14 @@ class MetronomeScreen extends StatelessWidget {
                 onPressed: () => controller.setBeats(state.timeSignature.beats + 1),
                 icon: const Icon(Icons.add),
               ),
-              const SizedBox(width: MetroSpacing.lg),
+              const SizedBox(width: RytmaSpacing.lg),
               const Text('/', style: TextStyle(fontSize: 24)),
-              const SizedBox(width: MetroSpacing.lg),
+              const SizedBox(width: RytmaSpacing.lg),
               DropdownButton<int>(
                 value: state.timeSignature.unit,
                 underline: const SizedBox.shrink(),
                 borderRadius: BorderRadius.circular(kRadius),
-                dropdownColor: MetroColors.surface,
+                dropdownColor: RytmaColors.surface,
                 items: [
                   for (final u in TimeSignature.units)
                     DropdownMenuItem(value: u, child: Text('$u')),
@@ -81,20 +81,20 @@ class MetronomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: MetroSpacing.md),
+          const SizedBox(height: RytmaSpacing.md),
           const BeatGrid(),
-          const SizedBox(height: MetroSpacing.sm),
+          const SizedBox(height: RytmaSpacing.sm),
           Center(
             child: Text(
               'Tap a beat to change its accent',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          const SizedBox(height: MetroSpacing.xl),
+          const SizedBox(height: RytmaSpacing.xl),
           const SectionLabel('Subdivision'),
-          const SizedBox(height: MetroSpacing.sm),
+          const SizedBox(height: RytmaSpacing.sm),
           const SubdivisionPicker(),
-          const SizedBox(height: MetroSpacing.xl),
+          const SizedBox(height: RytmaSpacing.xl),
           OutlinedButton.icon(
             onPressed: () => _savePresetDialog(context, controller),
             icon: const Icon(Icons.bookmark_add_outlined),

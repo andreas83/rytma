@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metro_power/engine/wav.dart';
+import 'package:rytma/engine/wav.dart';
 
 void main() {
   test('Wav.encode writes a correct 16-bit PCM header and data', () {

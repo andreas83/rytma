@@ -25,9 +25,9 @@ class SequencerController extends ChangeNotifier {
     _engine = SequencerEngine(onStep: _onStep);
   }
 
-  static const _legacyKey = 'metro_power.sequencer_pattern';
-  static const _songKey = 'metro_power.sequencer_song';
-  static const _fxKey = 'metro_power.sequencer_fx';
+  static const _legacyKey = 'rytma.sequencer_pattern';
+  static const _songKey = 'rytma.sequencer_song';
+  static const _fxKey = 'rytma.sequencer_fx';
 
   final SynthAudio _audio;
   late final SequencerEngine _engine;

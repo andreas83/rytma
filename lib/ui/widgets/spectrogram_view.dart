@@ -44,7 +44,7 @@ class _SpectrogramPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = MetroColors.heatFloor,
+      Paint()..color = RytmaColors.heatFloor,
     );
     if (columns.isEmpty) return;
 
@@ -81,11 +81,11 @@ class _SpectrogramPainter extends CustomPainter {
 
   /// Map 0..1 intensity to a dark→magenta→yellow heat ramp.
   Color _heat(double v) {
-    if (v <= 0) return MetroColors.heatFloor;
+    if (v <= 0) return RytmaColors.heatFloor;
     if (v < 0.5) {
-      return Color.lerp(MetroColors.heatLow, MetroColors.heatMid, v / 0.5)!;
+      return Color.lerp(RytmaColors.heatLow, RytmaColors.heatMid, v / 0.5)!;
     }
-    return Color.lerp(MetroColors.heatMid, MetroColors.heatHigh, (v - 0.5) / 0.5)!;
+    return Color.lerp(RytmaColors.heatMid, RytmaColors.heatHigh, (v - 0.5) / 0.5)!;
   }
 
   @override

@@ -24,7 +24,7 @@ Future<void> main() async {
   // The sequencer's tempo follows the metronome's BPM (unless overridden).
   controller.addListener(() => sequencer.setFollowedBpm(controller.state.bpm));
 
-  runApp(MetroPowerApp(
+  runApp(RytmaApp(
     controller: controller,
     looper: looper,
     analyzer: analyzer,
@@ -37,8 +37,8 @@ Future<void> main() async {
   await sequencer.init();
 }
 
-class MetroPowerApp extends StatelessWidget {
-  const MetroPowerApp({
+class RytmaApp extends StatelessWidget {
+  const RytmaApp({
     super.key,
     required this.controller,
     required this.looper,
@@ -64,7 +64,7 @@ class MetroPowerApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: sequencer),
       ],
       child: MaterialApp(
-        title: 'Metro Power',
+        title: 'Rytma',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         home: const HomeShell(),

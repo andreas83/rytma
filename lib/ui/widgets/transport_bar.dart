@@ -16,7 +16,7 @@ class TransportBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: MetroColors.surfaceBar,
+      color: RytmaColors.surfaceBar,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(

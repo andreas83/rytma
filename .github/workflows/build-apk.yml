@@ -45,7 +45,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: metro-power-release-apk
+          name: rytma-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
@@ -55,7 +55,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: app-latest
-          name: Metro Power — latest build
+          name: Rytma — latest build
           body: >
             Automated build from ${{ github.sha }}.
             Download and open `app-release.apk` on your Android device to install.

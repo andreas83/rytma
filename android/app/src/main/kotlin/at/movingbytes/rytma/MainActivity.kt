@@ -1,4 +1,4 @@
-package com.metropower.metro_power
+package at.movingbytes.rytma
 
 import io.flutter.embedding.android.FlutterActivity
 

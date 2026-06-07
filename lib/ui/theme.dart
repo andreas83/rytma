@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Central color palette for click types and accents, plus the app theme.
-class MetroColors {
+class RytmaColors {
   static const seed = Color(0xFF7C4DFF);
   static const strong = Color(0xFFFF5252);
   static const normal = Color(0xFF7C4DFF);
@@ -30,7 +30,7 @@ class MetroColors {
 }
 
 /// Shared spacing scale so gaps and padding stay on a consistent rhythm.
-class MetroSpacing {
+class RytmaSpacing {
   static const double xs = 4;
   static const double sm = 8;
   static const double md = 12;
@@ -43,19 +43,19 @@ const double kRadius = 16;
 
 ThemeData buildTheme() {
   final scheme = ColorScheme.fromSeed(
-    seedColor: MetroColors.seed,
+    seedColor: RytmaColors.seed,
     brightness: Brightness.dark,
   );
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: MetroColors.background,
+    scaffoldBackgroundColor: RytmaColors.background,
     sliderTheme: const SliderThemeData(
       trackHeight: 6,
       showValueIndicator: ShowValueIndicator.onDrag,
     ),
     cardTheme: CardThemeData(
-      color: MetroColors.surface,
+      color: RytmaColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
     ),
@@ -68,7 +68,7 @@ ThemeData buildTheme() {
     ),
     // Match the transport bar so the two stacked bottom bars read as one unit.
     navigationBarTheme: const NavigationBarThemeData(
-      backgroundColor: MetroColors.surfaceBar,
+      backgroundColor: RytmaColors.surfaceBar,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
     ),
@@ -87,7 +87,7 @@ ThemeData buildTheme() {
       ),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: MetroColors.surface,
+      backgroundColor: RytmaColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
     ),
   );

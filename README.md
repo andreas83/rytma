@@ -1,4 +1,4 @@
-# Metro Power
+# Rytma
 
 A cross-platform **Flutter** metronome and rhythm-practice app for Android, iOS,
 and Web — built for musicians who need more than a plain click.

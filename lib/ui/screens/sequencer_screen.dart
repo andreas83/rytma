@@ -68,19 +68,19 @@ class SequencerScreen extends StatelessWidget {
   static Color _laneColor(_Lane lane) {
     switch (lane) {
       case _Lane.kick:
-        return MetroColors.strong;
+        return RytmaColors.strong;
       case _Lane.snare:
-        return MetroColors.poly;
+        return RytmaColors.poly;
       case _Lane.hat:
-        return MetroColors.sub;
+        return RytmaColors.sub;
       case _Lane.clap:
-        return MetroColors.weak;
+        return RytmaColors.weak;
       case _Lane.bass:
-        return MetroColors.normal;
+        return RytmaColors.normal;
       case _Lane.chord:
-        return MetroColors.playing;
+        return RytmaColors.playing;
       case _Lane.lead:
-        return MetroColors.lead;
+        return RytmaColors.lead;
     }
   }
 
@@ -140,7 +140,7 @@ class SequencerScreen extends StatelessWidget {
     try {
       final bytes =
           renderPattern(seq.pattern, bpm: seq.effectiveBpm, loops: loops);
-      await deliverWav(bytes, 'metro-power.wav');
+      await deliverWav(bytes, 'rytma.wav');
       navigator.pop(); // close spinner
     } catch (e) {
       navigator.pop();
@@ -308,16 +308,16 @@ class _Controls extends StatelessWidget {
               _Tempo(seq: seq),
             ],
           ),
-          const SizedBox(height: MetroSpacing.sm),
+          const SizedBox(height: RytmaSpacing.sm),
           Row(
             children: [
               const Text('Steps'),
-              const SizedBox(width: MetroSpacing.sm),
+              const SizedBox(width: RytmaSpacing.sm),
               DropdownButton<int>(
                 value: p.steps,
                 underline: const SizedBox.shrink(),
                 borderRadius: BorderRadius.circular(kRadius),
-                dropdownColor: MetroColors.surface,
+                dropdownColor: RytmaColors.surface,
                 items: [
                   for (final n in kSequencerLengths)
                     DropdownMenuItem(value: n, child: Text('$n')),
@@ -326,19 +326,19 @@ class _Controls extends StatelessWidget {
               ),
               const Spacer(),
               const Text('Key'),
-              const SizedBox(width: MetroSpacing.sm),
+              const SizedBox(width: RytmaSpacing.sm),
               DropdownButton<int>(
                 value: p.root,
                 underline: const SizedBox.shrink(),
                 borderRadius: BorderRadius.circular(kRadius),
-                dropdownColor: MetroColors.surface,
+                dropdownColor: RytmaColors.surface,
                 items: [
                   for (var r = 0; r < 12; r++)
                     DropdownMenuItem(value: r, child: Text(Music.rootName(r))),
                 ],
                 onChanged: (r) => r != null ? seq.setRoot(r) : null,
               ),
-              const SizedBox(width: MetroSpacing.sm),
+              const SizedBox(width: RytmaSpacing.sm),
               SegmentedButton<SynthScale>(
                 showSelectedIcon: false,
                 style: const ButtonStyle(
@@ -653,7 +653,7 @@ class _LaneCells extends StatelessWidget {
               '${_laneLabels[lane]} · step ${step + 1}',
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
-            const SizedBox(height: MetroSpacing.md),
+            const SizedBox(height: RytmaSpacing.md),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -833,9 +833,9 @@ class _DynamicsSheet extends StatelessWidget {
         children: [
           Text('${_laneLabels[lane]} · step ${step + 1}',
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: MetroSpacing.md),
+          const SizedBox(height: RytmaSpacing.md),
           const Text('Velocity'),
-          const SizedBox(height: MetroSpacing.xs),
+          const SizedBox(height: RytmaSpacing.xs),
           SegmentedButton<StepVelocity>(
             showSelectedIcon: false,
             segments: const [
@@ -846,7 +846,7 @@ class _DynamicsSheet extends StatelessWidget {
             selected: {velocity},
             onSelectionChanged: (s) => setVelocity(s.first),
           ),
-          const SizedBox(height: MetroSpacing.md),
+          const SizedBox(height: RytmaSpacing.md),
           Row(
             children: [
               const Text('Chance'),
@@ -904,7 +904,7 @@ class _Mixer extends StatelessWidget {
         value: value,
         underline: const SizedBox.shrink(),
         borderRadius: BorderRadius.circular(kRadius),
-        dropdownColor: MetroColors.surface,
+        dropdownColor: RytmaColors.surface,
         items: [
           for (final w in SynthWave.values)
             DropdownMenuItem(value: w, child: Text(_waveLabel[w]!)),
@@ -921,7 +921,7 @@ class _Mixer extends StatelessWidget {
         children: [
           const Text('Mixer',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: MetroSpacing.sm),
+          const SizedBox(height: RytmaSpacing.sm),
           Row(
             children: [
               const SizedBox(width: 56, child: Text('Swing')),
@@ -1011,7 +1011,7 @@ class _FxRack extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           const Text('Effects on the sequencer voices only.',
               style: TextStyle(color: Colors.white54, fontSize: 12)),
-          const SizedBox(height: MetroSpacing.sm),
+          const SizedBox(height: RytmaSpacing.sm),
           section('Reverb', fx.reverbOn, seq.toggleReverb, [
             knob('Mix', fx.reverbWet, seq.setReverbWet),
             knob('Room', fx.reverbRoom, seq.setReverbRoom),
